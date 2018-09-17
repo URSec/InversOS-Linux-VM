@@ -219,6 +219,7 @@ notrace static inline u64 vgetsns(int *mode)
 /* Code size doesn't matter (vdso is 4k anyway) and this is faster. */
 notrace static int __always_inline do_realtime(struct timespec *ts)
 {
+	struct vgtod_ts *base = &gtod->basetime[CLOCK_REALTIME];
 	unsigned int seq;
 	u64 ns;
 	int mode;
@@ -226,8 +227,8 @@ notrace static int __always_inline do_realtime(struct timespec *ts)
 	do {
 		seq = gtod_read_begin(gtod);
 		mode = gtod->vclock_mode;
-		ts->tv_sec = gtod->wall_time_sec;
-		ns = gtod->wall_time_snsec;
+		ts->tv_sec = base->sec;
+		ns = base->nsec;
 		ns += vgetsns(&mode);
 		ns >>= gtod->shift;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
@@ -240,6 +241,7 @@ notrace static int __always_inline do_realtime(struct timespec *ts)
 
 notrace static int __always_inline do_monotonic(struct timespec *ts)
 {
+	struct vgtod_ts *base = &gtod->basetime[CLOCK_MONOTONIC];
 	unsigned int seq;
 	u64 ns;
 	int mode;
@@ -247,8 +249,8 @@ notrace static int __always_inline do_monotonic(struct timespec *ts)
 	do {
 		seq = gtod_read_begin(gtod);
 		mode = gtod->vclock_mode;
-		ts->tv_sec = gtod->monotonic_time_sec;
-		ns = gtod->monotonic_time_snsec;
+		ts->tv_sec = base->sec;
+		ns = base->nsec;
 		ns += vgetsns(&mode);
 		ns >>= gtod->shift;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
@@ -261,21 +263,25 @@ notrace static int __always_inline do_monotonic(struct timespec *ts)
 
 notrace static void do_realtime_coarse(struct timespec *ts)
 {
+	struct vgtod_ts *base = &gtod->basetime[CLOCK_REALTIME_COARSE];
 	unsigned int seq;
+
 	do {
 		seq = gtod_read_begin(gtod);
-		ts->tv_sec = gtod->wall_time_coarse_sec;
-		ts->tv_nsec = gtod->wall_time_coarse_nsec;
+		ts->tv_sec = base->sec;
+		ts->tv_nsec = base->nsec;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
 }
 
 notrace static void do_monotonic_coarse(struct timespec *ts)
 {
+	struct vgtod_ts *base = &gtod->basetime[CLOCK_MONOTONIC_COARSE];
 	unsigned int seq;
+
 	do {
 		seq = gtod_read_begin(gtod);
-		ts->tv_sec = gtod->monotonic_time_coarse_sec;
-		ts->tv_nsec = gtod->monotonic_time_coarse_nsec;
+		ts->tv_sec = base->sec;
+		ts->tv_nsec = base->nsec;
 	} while (unlikely(gtod_read_retry(gtod, seq)));
 }
 
@@ -331,7 +337,7 @@ int gettimeofday(struct timeval *, struct timezone *)
 notrace time_t __vdso_time(time_t *t)
 {
 	/* This is atomic on x86 so we don't need any locks. */
-	time_t result = READ_ONCE(gtod->wall_time_sec);
+	time_t result = READ_ONCE(gtod->basetime[CLOCK_REALTIME].sec);
 
 	if (t)
 		*t = result;
