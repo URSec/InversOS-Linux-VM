@@ -187,14 +187,18 @@ static inline bool uaccess_ttbr0_enable(void)
 
 static inline void __uaccess_disable_hw_pan(void)
 {
+#ifndef CONFIG_ARM64_INVERSOS
 	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,
 			CONFIG_ARM64_PAN));
+#endif
 }
 
 static inline void __uaccess_enable_hw_pan(void)
 {
+#ifndef CONFIG_ARM64_INVERSOS
 	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,
 			CONFIG_ARM64_PAN));
+#endif
 }
 
 #define __uaccess_disable(alt)						\
@@ -211,14 +215,44 @@ do {									\
 				CONFIG_ARM64_PAN));			\
 } while (0)
 
+#define __uaccess_disable_inversos(alt)					\
+do {									\
+	/*								\
+	 * SW_TTBR0_PAN is not used if PAN is present, thus not used	\
+	 * when InversOS is enabled.					\
+	 */								\
+} while (0)
+
+#define __uaccess_enable_inversos(alt)					\
+do {									\
+	/*								\
+	 * SW_TTBR0_PAN is not used if PAN is present, thus not used	\
+	 * when InversOS is enabled.					\
+	 */								\
+} while (0)
+
 static inline void uaccess_disable(void)
 {
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Don't enable PAN.
+	 */
+	__uaccess_disable_inversos(ARM64_HAS_PAN);
+#else
 	__uaccess_disable(ARM64_HAS_PAN);
+#endif
 }
 
 static inline void uaccess_enable(void)
 {
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * PAN was never enabled, so no need to disable it.
+	 */
+	__uaccess_enable_inversos(ARM64_HAS_PAN);
+#else
 	__uaccess_enable(ARM64_HAS_PAN);
+#endif
 }
 
 /*
@@ -226,12 +260,26 @@ static inline void uaccess_enable(void)
  */
 static inline void uaccess_disable_not_uao(void)
 {
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Don't enable PAN.
+	 */
+	__uaccess_disable_inversos(ARM64_ALT_PAN_NOT_UAO);
+#else
 	__uaccess_disable(ARM64_ALT_PAN_NOT_UAO);
+#endif
 }
 
 static inline void uaccess_enable_not_uao(void)
 {
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * PAN was never enabled, so no need to disable it.
+	 */
+	__uaccess_enable_inversos(ARM64_ALT_PAN_NOT_UAO);
+#else
 	__uaccess_enable(ARM64_ALT_PAN_NOT_UAO);
+#endif
 }
 
 /*

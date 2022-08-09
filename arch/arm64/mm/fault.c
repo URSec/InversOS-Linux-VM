@@ -908,7 +908,17 @@ void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
 	 */
 	WARN_ON_ONCE(in_interrupt());
 
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Disable PAN when the kernel is executing, by clearing PSTATE.PAN and
+	 * setting SCTLR_EL1.SPAN.  The latter ensures that, when entering the
+	 * kernel, PSTATE.PAN is unchanged.
+	 */
+	sysreg_clear_set(sctlr_el1, 0, SCTLR_EL1_SPAN);
+	asm(SET_PSTATE_PAN(0));
+#else
 	sysreg_clear_set(sctlr_el1, SCTLR_EL1_SPAN, 0);
 	asm(SET_PSTATE_PAN(1));
+#endif
 }
 #endif /* CONFIG_ARM64_PAN */

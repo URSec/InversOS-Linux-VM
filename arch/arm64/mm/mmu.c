@@ -109,7 +109,12 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	 * The following mapping attributes may be updated in live
 	 * kernel mappings without the need for break-before-make.
 	 */
+#ifdef CONFIG_ARM64_INVERSOS
+	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG |
+				     PTE_USER;
+#else
 	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
+#endif
 
 	/* creating or taking down mappings is always safe */
 	if (old == 0 || new == 0)

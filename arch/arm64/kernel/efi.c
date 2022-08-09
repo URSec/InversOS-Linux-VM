@@ -80,6 +80,14 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 		page_mappings_only = true;
 	}
 
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * EFI mapping is loaded in TTBR0_EL1, so it will never be accessible
+	 * to userspace.  We can therefore safely remove the PTE_USER bit.
+	 */
+	prot_val &= ~PTE_USER;
+#endif
+
 	create_pgd_mapping(mm, md->phys_addr, md->virt_addr,
 			   md->num_pages << EFI_PAGE_SHIFT,
 			   __pgprot(prot_val | PTE_NG), page_mappings_only);
