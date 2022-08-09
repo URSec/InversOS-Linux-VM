@@ -111,10 +111,17 @@ static inline pteval_t __phys_to_pte_val(phys_addr_t phys)
 #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
 
 #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
+#ifdef CONFIG_ARM64_INVERSOS
+#define pte_valid_not_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_KERNEL)) == (PTE_VALID | PTE_KERNEL))
+#define pte_valid_user(pte) \
+	((pte_val(pte) & (PTE_VALID | PTE_KERNEL)) == PTE_VALID)
+#else
 #define pte_valid_not_user(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
 #define pte_valid_user(pte) \
 	((pte_val(pte) & (PTE_VALID | PTE_USER)) == (PTE_VALID | PTE_USER))
+#endif
 
 /*
  * Could the pte be present in the TLB? We must check mm_tlb_flush_pending
@@ -589,8 +596,13 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
+#ifdef CONFIG_ARM64_INVERSOS
+	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
+			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE | PTE_KERNEL;
+#else
 	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
 			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE;
+#endif
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
 		pte = pte_mkdirty(pte);

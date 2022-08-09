@@ -309,7 +309,11 @@ __create_page_tables:
 	subs	x1, x1, #64
 	b.ne	1b
 
+#ifdef CONFIG_ARM64_INVERSOS
+	mov_q	x7, SWAPPER_MM_MMUFLAGS
+#else
 	mov	x7, SWAPPER_MM_MMUFLAGS
+#endif
 
 	/*
 	 * Create the identity mapping.

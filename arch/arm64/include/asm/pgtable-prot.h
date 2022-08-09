@@ -30,6 +30,11 @@
 #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
 #define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
 
+#ifdef CONFIG_ARM64_INVERSOS
+#define PTE_KERNEL		(_AT(pteval_t, 1) << 63) /* Ignored */
+#define PMD_SECT_KERNEL		(_AT(pmdval_t, 1) << 63) /* Ignored */
+#endif
+
 #ifndef __ASSEMBLY__
 
 #include <asm/pgtable-types.h>
@@ -40,8 +45,13 @@
 #define PTE_MAYBE_NG		(arm64_kernel_unmapped_at_el0() ? PTE_NG : 0)
 #define PMD_MAYBE_NG		(arm64_kernel_unmapped_at_el0() ? PMD_SECT_NG : 0)
 
+#ifdef CONFIG_ARM64_INVERSOS
+#define PROT_DEFAULT		(_PROT_DEFAULT | PTE_MAYBE_NG | PTE_KERNEL)
+#define PROT_SECT_DEFAULT	(_PROT_SECT_DEFAULT | PMD_MAYBE_NG | PMD_SECT_KERNEL)
+#else
 #define PROT_DEFAULT		(_PROT_DEFAULT | PTE_MAYBE_NG)
 #define PROT_SECT_DEFAULT	(_PROT_SECT_DEFAULT | PMD_MAYBE_NG)
+#endif
 
 #define PROT_DEVICE_nGnRnE	(PROT_DEFAULT | PTE_PXN | PTE_UXN | PTE_WRITE | PTE_ATTRINDX(MT_DEVICE_nGnRnE))
 #define PROT_DEVICE_nGnRE	(PROT_DEFAULT | PTE_PXN | PTE_UXN | PTE_WRITE | PTE_ATTRINDX(MT_DEVICE_nGnRE))
