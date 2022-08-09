@@ -764,6 +764,14 @@ ENTRY(__enable_mmu)
 	ubfx	x2, x1, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
 	b.ne	__no_granule_support
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Stop booting the kernel if the CPU does not support PAN.
+	 */
+	mrs	x7, ID_AA64MMFR1_EL1
+	ubfx	x6, x7, #ID_AA64MMFR1_PAN_SHIFT, 4
+	cbz	x6, __no_granule_support
+#endif
 	update_early_cpu_boot_status 0, x1, x2
 	adrp	x1, idmap_pg_dir
 	adrp	x2, swapper_pg_dir
