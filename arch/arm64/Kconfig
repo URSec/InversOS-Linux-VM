@@ -1173,6 +1173,12 @@ config ARM64_RAS_EXTN
 
 endmenu
 
+config ARM64_INVERSOS
+	bool "Enable support for InversOS"
+	default n
+	depends on ARM64_PAN
+	depends on !COMPAT # Only an implementation choice
+
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
 	default y
