@@ -62,6 +62,11 @@ struct linux_binprm {
 	unsigned interp_data;
 	unsigned long loader, exec;
 
+#ifdef CONFIG_ARM64_INVERSOS
+	unsigned long inversos;	/* Whether to start the program as an inversos
+				   task. */
+#endif
+
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
 } __randomize_layout;
 
