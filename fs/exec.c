@@ -1718,6 +1718,52 @@ static int exec_binprm(struct linux_binprm *bprm)
 	return ret;
 }
 
+#ifdef CONFIG_ARM64_INVERSOS
+/*
+ * Initialize bprm->inversos.  The current implementation searches for
+ * "INVERSOS=1" in the environment strings as an indicator for running an
+ * inversos task.  In real world it could be others like code signing, setuid,
+ * etc.
+ */
+static int bprm_init_inversos(struct linux_binprm *bprm,
+			      struct user_arg_ptr envp)
+{
+	if (envp.ptr.native != NULL) {
+		int i = 0;
+		static char buf[MAX_ARG_STRLEN];
+
+		for (;;) {
+			const char __user *env = get_user_arg_ptr(envp, i);
+
+			if (!env)
+				break;
+
+			if (IS_ERR(env))
+				return -EFAULT;
+
+			if (i >= MAX_ARG_STRINGS)
+				return -E2BIG;
+
+			if (strncpy_from_user(buf, env, MAX_ARG_STRLEN) < 0)
+				return -EFAULT;
+
+			if (!strncmp(buf, "INVERSOS=1", MAX_ARG_STRLEN)) {
+				bprm->inversos = 1;
+				return 0;
+			}
+
+			++i;
+
+			if (fatal_signal_pending(current))
+				return -ERESTARTNOHAND;
+			cond_resched();
+		}
+	}
+
+	return 0;
+}
+#endif
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1799,6 +1845,13 @@ static int __do_execve_file(int fd, struct filename *filename,
 		bprm->filename = pathbuf;
 	}
 	bprm->interp = bprm->filename;
+
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Initialize bprm->inversos. */
+	retval = bprm_init_inversos(bprm, envp);
+	if (retval)
+		goto out_unmark;
+#endif
 
 	retval = bprm_mm_init(bprm);
 	if (retval)
