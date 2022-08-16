@@ -43,7 +43,15 @@ struct thread_info {
 	u64			ttbr0;		/* saved TTBR0_EL1 */
 #endif
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
+#ifdef CONFIG_ARM64_INVERSOS
+	unsigned long		inversos;	/* Whether an inversos task */
+#endif
 };
+
+#ifdef CONFIG_ARM64_INVERSOS
+unsigned long task_inversos(const struct task_struct *tsk);
+void set_task_inversos(struct task_struct *tsk, unsigned long val);
+#endif
 
 #define thread_saved_pc(tsk)	\
 	((unsigned long)(tsk->thread.cpu_context.pc))

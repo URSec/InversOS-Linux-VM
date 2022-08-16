@@ -551,3 +551,16 @@ void __used stackleak_check_alloca(unsigned long size)
 }
 EXPORT_SYMBOL(stackleak_check_alloca);
 #endif
+
+#ifdef CONFIG_ARM64_INVERSOS
+unsigned long task_inversos(const struct task_struct *tsk)
+{
+	return tsk->thread_info.inversos;
+}
+EXPORT_SYMBOL(task_inversos);
+
+void set_task_inversos(struct task_struct *tsk, unsigned long val)
+{
+	tsk->thread_info.inversos = (!!val);
+}
+#endif
