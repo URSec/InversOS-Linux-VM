@@ -410,6 +410,11 @@ static int bprm_mm_init(struct linux_binprm *bprm)
 	if (!mm)
 		goto err;
 
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Propagate inversos from bprm to mm. */
+	mm->context.inversos = bprm->inversos;
+#endif
+
 	/* Save current stack limit for all calculations made during exec. */
 	task_lock(current->group_leader);
 	bprm->rlim_stack = current->signal->rlim[RLIMIT_STACK];
@@ -1299,6 +1304,10 @@ int flush_old_exec(struct linux_binprm * bprm)
 	 * in search_binary_handler() will SEGV current.
 	 */
 	bprm->mm = NULL;
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Propagate inversos from bprm to task. */
+	set_task_inversos(current, bprm->inversos);
+#endif
 
 	set_fs(USER_DS);
 	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD |
