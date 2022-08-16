@@ -29,6 +29,10 @@ typedef struct {
 	atomic64_t	id;
 	void		*vdso;
 	unsigned long	flags;
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Whether the containing mm is for an inversos task. */
+	unsigned long	inversos;
+#endif
 } mm_context_t;
 
 /*
