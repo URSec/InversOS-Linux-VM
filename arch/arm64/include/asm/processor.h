@@ -48,6 +48,10 @@
 #include <asm/ptrace.h>
 #include <asm/types.h>
 
+#ifdef CONFIG_ARM64_INVERSOS
+#include <asm/current.h>	/* For current */
+#endif
+
 /*
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area.
@@ -187,10 +191,23 @@ static inline void set_compat_ssbs_bit(struct pt_regs *regs)
 	regs->pstate |= PSR_AA32_SSBS_BIT;
 }
 
+#ifdef CONFIG_ARM64_INVERSOS
+unsigned long task_inversos(const struct task_struct *tsk);
+#endif
+
 static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 				unsigned long sp)
 {
 	start_thread_common(regs, pc);
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Run inversos tasks in EL1t/EL2t. */
+	if (task_inversos(current)) {
+		if (is_kernel_in_hyp_mode())
+			regs->pstate = PSR_MODE_EL2t;
+		else
+			regs->pstate = PSR_MODE_EL1t;
+	} else
+#endif
 	regs->pstate = PSR_MODE_EL0t;
 
 	if (arm64_get_ssbd_state() != ARM64_SSBD_FORCE_ENABLE)

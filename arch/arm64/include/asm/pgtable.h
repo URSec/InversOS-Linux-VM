@@ -288,6 +288,19 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			     __func__, pte_val(old_pte), pte_val(pte));
 	}
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (mm->context.inversos && addr < TASK_SIZE) {
+		/*
+		 * Set proper execution permissions for code pages of
+		 * inversos tasks; they run in EL1t/EL2t.
+		 */
+		if (pte_user_exec(pte)) {
+			pte = set_pte_bit(pte, __pgprot(PTE_UXN));
+			pte = clear_pte_bit(pte, __pgprot(PTE_PXN));
+		}
+	}
+#endif
+
 	set_pte(ptep, pte);
 }
 

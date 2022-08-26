@@ -68,7 +68,7 @@
 #define BAD_FIQ		2
 #define BAD_ERROR	3
 
-	.macro kernel_ventry, el, label, regsize = 64
+	.macro kernel_ventry, el, label, regsize = 64, inversos = 0
 	.align 7
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 alternative_if ARM64_UNMAP_KERNEL_AT_EL0
@@ -154,7 +154,7 @@ alternative_cb_end
 #endif
 	.endm
 
-	.macro	kernel_entry, el, regsize = 64
+	.macro	kernel_entry, el, regsize = 64, inversos = 0
 	.if	\regsize == 32
 	mov	w0, w0				// zero upper 32 bits of x0
 	.endif
@@ -428,10 +428,18 @@ tsk	.req	x28		// current thread_info
 
 	.align	11
 ENTRY(vectors)
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Enable exception vectors for EL1t/EL2t. */
+	kernel_ventry	0, sync_inversos, 64, 1		// Synchronous EL1t
+	kernel_ventry	0, irq_inversos, 64, 1		// IRQ EL1t
+	kernel_ventry	0, fiq_inversos_invalid, 64, 1	// FIQ EL1t
+	kernel_ventry	0, error_inversos, 64, 1	// Error EL1t
+#else
 	kernel_ventry	1, sync_invalid			// Synchronous EL1t
 	kernel_ventry	1, irq_invalid			// IRQ EL1t
 	kernel_ventry	1, fiq_invalid			// FIQ EL1t
 	kernel_ventry	1, error_invalid		// Error EL1t
+#endif
 
 	kernel_ventry	1, sync				// Synchronous EL1h
 	kernel_ventry	1, irq				// IRQ EL1h
@@ -487,14 +495,101 @@ __bad_stack:
 /*
  * Invalid mode handlers
  */
-	.macro	inv_entry, el, reason, regsize = 64
-	kernel_entry \el, \regsize
+	.macro	inv_entry, el, reason, regsize = 64, inversos = 0
+	kernel_entry \el, \regsize, \inversos
 	mov	x0, sp
 	mov	x1, #\reason
 	mrs	x2, esr_el1
 	bl	bad_mode
 	ASM_BUG()
 	.endm
+
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * EL1t/EL2t synchronous exception handler.
+	 */
+	.align	6
+el0_sync_inversos:
+	kernel_entry 0, 64, 1
+	mrs	x25, esr_el1			// read the syndrome register
+	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class
+	cmp	x24, #ESR_ELx_EC_SVC64		// SVC in 64-bit state
+	b.eq	el0_svc_inversos
+	cmp	x24, #ESR_ELx_EC_DABT_CUR	// data abort in EL1t
+	b.eq	el0_da_inversos
+	cmp	x24, #ESR_ELx_EC_IABT_CUR	// instruction abort in EL1t
+	b.eq	el0_ia_inversos
+	cmp	x24, #ESR_ELx_EC_FP_ASIMD	// FP/ASIMD access
+	b.eq	el0_fpsimd_acc_inversos
+	cmp	x24, #ESR_ELx_EC_SVE		// SVE access
+	b.eq	el0_sve_acc_inversos
+	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception
+	b.eq	el0_fpsimd_exc_inversos
+	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception
+	b.eq	el0_sp_pc_inversos
+	cmp	x24, #ESR_ELx_EC_PC_ALIGN	// pc alignment exception
+	b.eq	el0_sp_pc_inversos
+	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL1t
+	b.eq	el0_undef_inversos
+	cmp	x24, #ESR_ELx_EC_BREAKPT_CUR	// debug exception in EL1t
+	b.ge	el0_dbg_inversos
+	b	el0_inv_inversos
+el0_svc_inversos:
+	b	el0_svc
+el0_da_inversos:
+	b	el0_da
+el0_ia_inversos:
+	b	el0_ia
+el0_fpsimd_acc_inversos:
+	b	el0_fpsimd_acc
+el0_sve_acc_inversos:
+	b	el0_sve_acc
+el0_fpsimd_exc_inversos:
+	b	el0_fpsimd_exc
+el0_sp_pc_inversos:
+	b	el0_sp_pc
+el0_undef_inversos:
+	b	el0_undef
+el0_dbg_inversos:
+	cmp	x24, #ESR_ELx_EC_BRK64		// if BRK64
+	cinc	x24, x24, eq			// set bit '0'
+	tbz	x24, #0, el0_inv_inversos	// EL1 only
+	mrs	x0, far_el1
+	mov	x1, x25
+	mov	x2, sp				// struct pt_regs
+	bl	do_debug_exception
+	enable_da_f
+	ct_user_exit
+	b	ret_to_user
+el0_inv_inversos:
+	b	el0_inv
+ENDPROC(el0_sync_inversos)
+
+	/*
+	 * EL1t/EL2t IRQ handler.
+	 */
+	.align	6
+el0_irq_inversos:
+	kernel_entry 0, 64, 1
+	b	el0_irq_naked
+ENDPROC(el0_irq_inversos)
+
+	/*
+	 * EL1t/EL2t FIQ handler.
+	 */
+el0_fiq_inversos_invalid:
+	inv_entry 0, BAD_FIQ, 64, 1
+ENDPROC(el0_fiq_inversos_invalid)
+
+	/*
+	 * EL1t/EL2t SError handler.
+	 */
+	.align	6
+el0_error_inversos:
+	kernel_entry 0, 64, 1
+	b	el0_error_naked
+ENDPROC(el0_error_inversos)
+#endif /* CONFIG_ARM64_INVERSOS */
 
 el0_sync_invalid:
 	inv_entry 0, BAD_SYNC
@@ -957,7 +1052,7 @@ alternative_else_nop_endif
 	 */
 	.endm
 
-	.macro tramp_ventry, regsize = 64
+	.macro tramp_ventry, regsize = 64, inversos = 0
 	.align	7
 1:
 	.if	\regsize == 64
@@ -998,7 +1093,17 @@ alternative_insn isb, nop, ARM64_WORKAROUND_QCOM_FALKOR_E1003
 
 	.align	11
 ENTRY(tramp_vectors)
+#ifdef CONFIG_ARM64_INVERSOS
+	/* Enable trampoline exception vectors for EL1t/EL2t. */
+	tramp_ventry	64, 1
+	tramp_ventry	64, 1
+	tramp_ventry	64, 1
+	tramp_ventry	64, 1
+
+	.space	0x200
+#else
 	.space	0x400
+#endif
 
 	tramp_ventry
 	tramp_ventry

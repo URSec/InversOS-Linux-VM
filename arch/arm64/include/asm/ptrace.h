@@ -190,8 +190,16 @@ static inline void forget_syscall(struct pt_regs *regs)
 #define compat_thumb_mode(regs) (0)
 #endif
 
+#ifdef CONFIG_ARM64_INVERSOS
+/* User mode now includes EL1t/EL2t. */
+#define user_mode(regs)	\
+	(((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL0t ||	\
+	 ((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL1t ||	\
+	 ((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL2t)
+#else
 #define user_mode(regs)	\
 	(((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL0t)
+#endif
 
 #define compat_user_mode(regs)	\
 	(((regs)->pstate & (PSR_MODE32_BIT | PSR_MODE_MASK)) == \

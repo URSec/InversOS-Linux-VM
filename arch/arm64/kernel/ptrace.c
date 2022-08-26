@@ -1759,8 +1759,17 @@ static int valid_native_regs(struct user_pt_regs *regs)
 		return 1;
 	}
 
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * In addition to the following, also preserve mode bits (which are
+	 * non-zero in an inversos task).
+	 */
+	regs->pstate &= PSR_N_BIT | PSR_Z_BIT | PSR_C_BIT | PSR_V_BIT |
+			PSR_MODE_MASK;
+#else
 	/* Force PSR to a valid 64-bit EL0t */
 	regs->pstate &= PSR_N_BIT | PSR_Z_BIT | PSR_C_BIT | PSR_V_BIT;
+#endif
 
 	return 0;
 }
