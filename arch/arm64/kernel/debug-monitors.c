@@ -97,7 +97,7 @@ void enable_debug_monitors(enum dbg_active_el el)
 	if (this_cpu_inc_return(mde_ref_count) == 1)
 		enable = DBG_MDSCR_MDE;
 
-	if (el == DBG_ACTIVE_EL1 &&
+	if (el == DBG_ACTIVE_EL1 && !IS_ENABLED(CONFIG_ARM64_INVERSOS) &&
 	    this_cpu_inc_return(kde_ref_count) == 1)
 		enable |= DBG_MDSCR_KDE;
 
@@ -118,7 +118,7 @@ void disable_debug_monitors(enum dbg_active_el el)
 	if (this_cpu_dec_return(mde_ref_count) == 0)
 		disable = ~DBG_MDSCR_MDE;
 
-	if (el == DBG_ACTIVE_EL1 &&
+	if (el == DBG_ACTIVE_EL1 && !IS_ENABLED(CONFIG_ARM64_INVERSOS) &&
 	    this_cpu_dec_return(kde_ref_count) == 0)
 		disable &= ~DBG_MDSCR_KDE;
 
