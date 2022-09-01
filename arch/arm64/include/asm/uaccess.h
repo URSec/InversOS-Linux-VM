@@ -220,7 +220,13 @@ do {									\
 	/*								\
 	 * SW_TTBR0_PAN is not used if PAN is present, thus not used	\
 	 * when InversOS is enabled.					\
+	 * 								\
+	 * When we're done accessing inversos task memory, turn off	\
+	 * UAO if it is present.					\
 	 */								\
+	if (task_inversos(current))					\
+		asm(ALTERNATIVE("nop", SET_PSTATE_UAO(0),		\
+				ARM64_HAS_UAO, CONFIG_ARM64_UAO));	\
 } while (0)
 
 #define __uaccess_enable_inversos(alt)					\
@@ -228,7 +234,13 @@ do {									\
 	/*								\
 	 * SW_TTBR0_PAN is not used if PAN is present, thus not used	\
 	 * when InversOS is enabled.					\
+	 * 								\
+	 * Before accessing inversos task memory (which is likely	\
+	 * EL0-inaccessible), UAO must be turned on if it is present.	\
 	 */								\
+	if (task_inversos(current))					\
+		asm(ALTERNATIVE("nop", SET_PSTATE_UAO(1),		\
+				ARM64_HAS_UAO, CONFIG_ARM64_UAO));	\
 } while (0)
 
 static inline void uaccess_disable(void)

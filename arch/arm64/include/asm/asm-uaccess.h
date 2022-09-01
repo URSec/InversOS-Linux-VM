@@ -63,16 +63,44 @@ alternative_else_nop_endif
  */
 	.macro	uaccess_disable_not_uao, tmp1, tmp2
 	uaccess_ttbr0_disable \tmp1, \tmp2
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * When we're done accessing inversos task memory, turn off UAO if it
+	 * is present.
+	 */
+	mrs	\tmp1, sp_el0
+	ldr	\tmp1, [\tmp1, #TSK_TI_INVERSOS]
+	cbz	\tmp1, 1f
+alternative_if ARM64_HAS_UAO
+	SET_PSTATE_UAO(0)
+alternative_else_nop_endif
+1:
+#else
 alternative_if ARM64_ALT_PAN_NOT_UAO
 	SET_PSTATE_PAN(1)
 alternative_else_nop_endif
+#endif
 	.endm
 
 	.macro	uaccess_enable_not_uao, tmp1, tmp2, tmp3
 	uaccess_ttbr0_enable \tmp1, \tmp2, \tmp3
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Before accessing inversos task memory (which is likely
+	 * EL0-inaccessible), UAO must be turned on if it is present.
+	 */
+	mrs	\tmp1, sp_el0
+	ldr	\tmp1, [\tmp1, #TSK_TI_INVERSOS]
+	cbz	\tmp1, 1f
+alternative_if ARM64_HAS_UAO
+	SET_PSTATE_UAO(1)
+alternative_else_nop_endif
+1:
+#else
 alternative_if ARM64_ALT_PAN_NOT_UAO
 	SET_PSTATE_PAN(0)
 alternative_else_nop_endif
+#endif
 	.endm
 
 /*

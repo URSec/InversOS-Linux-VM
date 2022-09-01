@@ -291,6 +291,14 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 #ifdef CONFIG_ARM64_INVERSOS
 	if (mm->context.inversos && addr < TASK_SIZE) {
 		/*
+		 * Map memory for inversos tasks as EL0-inaccessible.
+		 *
+		 * TODO: Protected memory in an inversos task should have this
+		 * bit set.
+		 */
+		pte = clear_pte_bit(pte, __pgprot(PTE_USER));
+
+		/*
 		 * Set proper execution permissions for code pages of
 		 * inversos tasks; they run in EL1t/EL2t.
 		 */
