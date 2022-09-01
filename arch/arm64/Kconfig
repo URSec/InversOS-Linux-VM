@@ -1179,6 +1179,19 @@ config ARM64_INVERSOS
 	depends on ARM64_PAN
 	depends on !COMPAT # Only an implementation choice
 
+choice
+	prompt "How to prevent legacy processes from accessing kernel memory"
+	default ARM64_INVERSOS_E0PD
+	depends on ARM64_INVERSOS
+
+config ARM64_INVERSOS_HPDS
+	bool "Use HPDS"
+
+config ARM64_INVERSOS_E0PD
+	bool "Use E0PD"
+
+endchoice
+
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
 	default y
