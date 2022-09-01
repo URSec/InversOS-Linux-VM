@@ -200,12 +200,13 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 {
 	start_thread_common(regs, pc);
 #ifdef CONFIG_ARM64_INVERSOS
-	/* Run inversos tasks in EL1t/EL2t. */
+	/* Run inversos tasks in EL1t/EL2t with PAN enabled. */
 	if (task_inversos(current)) {
 		if (is_kernel_in_hyp_mode())
 			regs->pstate = PSR_MODE_EL2t;
 		else
 			regs->pstate = PSR_MODE_EL1t;
+		regs->pstate |= PSR_PAN_BIT;
 	} else
 #endif
 	regs->pstate = PSR_MODE_EL0t;

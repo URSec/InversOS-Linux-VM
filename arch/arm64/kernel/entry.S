@@ -70,8 +70,15 @@
 
 	.macro kernel_ventry, el, label, regsize = 64, inversos = 0
 	.align 7
+	/*
+	 * Entering the kernel from EL1t/EL2t has PSTATE.PAN set (inherited due
+	 * to SCTLR_EL1.SPAN == 1), so clear PSTATE.PAN here before we access
+	 * any kernel memory.  Otherwise the kernel would enter infinite nested
+	 * exceptions.
+	 */
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 alternative_if ARM64_UNMAP_KERNEL_AT_EL0
+	/* We entered from tramp_vectors, which already cleared PSTATE.PAN. */
 	.if	\el == 0
 	.if	\regsize == 64
 	mrs	x30, tpidrro_el0
@@ -80,7 +87,33 @@ alternative_if ARM64_UNMAP_KERNEL_AT_EL0
 	mov	x30, xzr
 	.endif
 	.endif
-alternative_else_nop_endif
+alternative_else
+	/*
+	 * Clear PSTATE.PAN.  Note that # of instructions should match the
+	 * above alternative case.
+	 */
+	.if	\el == 0
+	.if	\regsize == 64
+	.if	\inversos == 1
+	SET_PSTATE_PAN(0)
+	.else
+	nop
+	.endif
+	nop
+	.else
+	nop
+	.endif
+	.endif
+alternative_endif
+#elif defined(CONFIG_ARM64_INVERSOS)
+	/* Clear PSTATE.PAN. */
+	.if	\el == 0
+	.if	\regsize == 64
+	.if	\inversos == 1
+	SET_PSTATE_PAN(0)
+	.endif
+	.endif
+	.endif
 #endif
 
 	sub	sp, sp, #S_FRAME_SIZE
@@ -1055,6 +1088,18 @@ alternative_else_nop_endif
 	.macro tramp_ventry, regsize = 64, inversos = 0
 	.align	7
 1:
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Clear PSTATE.PAN if entered from EL1t/EL2t.  See the comment in
+	 * kernel_ventry.
+	 */
+	.if	\regsize == 64
+	.if	\inversos == 1
+	SET_PSTATE_PAN(0)
+	.endif
+	.endif
+#endif
+
 	.if	\regsize == 64
 	msr	tpidrro_el0, x30	// Restored in kernel_ventry
 	.endif

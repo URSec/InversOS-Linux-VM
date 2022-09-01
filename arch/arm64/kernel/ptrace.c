@@ -1699,6 +1699,14 @@ void syscall_trace_exit(struct pt_regs *regs)
 	rseq_syscall(regs);
 }
 
+#ifdef CONFIG_ARM64_INVERSOS
+/*
+ * For inversos tasks, PAN (bit 22) is meaningful.
+ */
+#define SPSR_EL1_AARCH64_RES0_BITS \
+	(GENMASK_ULL(63, 32) | GENMASK_ULL(27, 25) | GENMASK_ULL(23, 23) | \
+	 GENMASK_ULL(20, 13) | GENMASK_ULL(11, 10) | GENMASK_ULL(5, 5))
+#else
 /*
  * SPSR_ELx bits which are always architecturally RES0 per ARM DDI 0487D.a.
  * We permit userspace to set SSBS (AArch64 bit 12, AArch32 bit 23) which is
@@ -1712,6 +1720,7 @@ void syscall_trace_exit(struct pt_regs *regs)
 #define SPSR_EL1_AARCH64_RES0_BITS \
 	(GENMASK_ULL(63, 32) | GENMASK_ULL(27, 25) | GENMASK_ULL(23, 22) | \
 	 GENMASK_ULL(20, 13) | GENMASK_ULL(11, 10) | GENMASK_ULL(5, 5))
+#endif
 #define SPSR_EL1_AARCH32_RES0_BITS \
 	(GENMASK_ULL(63, 32) | GENMASK_ULL(22, 22) | GENMASK_ULL(20, 20))
 
@@ -1762,10 +1771,10 @@ static int valid_native_regs(struct user_pt_regs *regs)
 #ifdef CONFIG_ARM64_INVERSOS
 	/*
 	 * In addition to the following, also preserve mode bits (which are
-	 * non-zero in an inversos task).
+	 * non-zero in an inversos task) and PAN bit.
 	 */
 	regs->pstate &= PSR_N_BIT | PSR_Z_BIT | PSR_C_BIT | PSR_V_BIT |
-			PSR_MODE_MASK;
+			PSR_PAN_BIT | PSR_MODE_MASK;
 #else
 	/* Force PSR to a valid 64-bit EL0t */
 	regs->pstate &= PSR_N_BIT | PSR_Z_BIT | PSR_C_BIT | PSR_V_BIT;
