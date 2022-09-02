@@ -49,6 +49,16 @@ static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
 {
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Set hierarchical control of access permissions for kernel PTEs that
+	 * point to a next-level page table: no EL0 data & instruction access.
+	 */
+	if (mm == &init_mm)
+		__pud_populate(pudp, __pa(pmdp),
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+	else
+#endif
 	__pud_populate(pudp, __pa(pmdp), PMD_TYPE_TABLE);
 }
 #else
@@ -78,6 +88,16 @@ static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)
 
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, pud_t *pudp)
 {
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Set hierarchical control of access permissions for kernel PTEs that
+	 * point to a next-level page table: no EL0 data & instruction access.
+	 */
+	if (mm == &init_mm)
+		__pgd_populate(pgdp, __pa(pudp),
+			       PUD_TYPE_TABLE | PUD_TABLE_KERNEL | PUD_TABLE_UXN);
+	else
+#endif
 	__pgd_populate(pgdp, __pa(pudp), PUD_TYPE_TABLE);
 }
 #else
@@ -142,12 +162,32 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmdp, pte_t *ptep)
 	/*
 	 * The pmd must be loaded with the physical address of the PTE table
 	 */
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Set hierarchical control of access permissions for kernel PTEs that
+	 * point to a next-level page table: no EL0 data & instruction access.
+	 */
+	if (mm == &init_mm)
+		__pmd_populate(pmdp, __pa(ptep),
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+	else
+#endif
 	__pmd_populate(pmdp, __pa(ptep), PMD_TYPE_TABLE);
 }
 
 static inline void
 pmd_populate(struct mm_struct *mm, pmd_t *pmdp, pgtable_t ptep)
 {
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Set hierarchical control of access permissions for kernel PTEs that
+	 * point to a next-level page table: no EL0 data & instruction access.
+	 */
+	if (mm == &init_mm)
+		__pmd_populate(pmdp, page_to_phys(ptep),
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+	else
+#endif
 	__pmd_populate(pmdp, page_to_phys(ptep), PMD_TYPE_TABLE);
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)

@@ -169,7 +169,17 @@ static void alloc_init_cont_pte(pmd_t *pmdp, unsigned long addr,
 		phys_addr_t pte_phys;
 		BUG_ON(!pgtable_alloc);
 		pte_phys = pgtable_alloc();
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pmd_populate(pmdp, pte_phys,
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+#else
 		__pmd_populate(pmdp, pte_phys, PMD_TYPE_TABLE);
+#endif
 		pmd = READ_ONCE(*pmdp);
 	}
 	BUG_ON(pmd_bad(pmd));
@@ -205,6 +215,13 @@ static void init_pmd(pud_t *pudp, unsigned long addr, unsigned long end,
 
 		/* try section mapping first */
 		if (((addr | next | phys) & ~SECTION_MASK) == 0 &&
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		    /*
+		     * Don't use huge page of this level if it leaves no
+		     * mid-level table descriptors.
+		     */
+		    CONFIG_PGTABLE_LEVELS > 2 &&
+#endif
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
 			pmd_set_huge(pmdp, phys, prot);
 
@@ -243,7 +260,17 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 		phys_addr_t pmd_phys;
 		BUG_ON(!pgtable_alloc);
 		pmd_phys = pgtable_alloc();
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pud_populate(pudp, pmd_phys,
+			       PUD_TYPE_TABLE | PUD_TABLE_KERNEL | PUD_TABLE_UXN);
+#else
 		__pud_populate(pudp, pmd_phys, PUD_TYPE_TABLE);
+#endif
 		pud = READ_ONCE(*pudp);
 	}
 	BUG_ON(pud_bad(pud));
@@ -289,7 +316,17 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		phys_addr_t pud_phys;
 		BUG_ON(!pgtable_alloc);
 		pud_phys = pgtable_alloc();
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pgd_populate(pgdp, pud_phys,
+			       PUD_TYPE_TABLE | PUD_TABLE_KERNEL | PUD_TABLE_UXN);
+#else
 		__pgd_populate(pgdp, pud_phys, PUD_TYPE_TABLE);
+#endif
 		pgd = READ_ONCE(*pgdp);
 	}
 	BUG_ON(pgd_bad(pgd));
@@ -304,6 +341,13 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 		 * For 4K granule only, attempt to put down a 1GB block
 		 */
 		if (use_1G_block(addr, next, phys) &&
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		    /*
+		     * Don't use huge page of this level if it leaves no
+		     * mid-level table descriptors.
+		     */
+		    CONFIG_PGTABLE_LEVELS > 3 &&
+#endif
 		    (flags & NO_BLOCK_MAPPINGS) == 0) {
 			pud_set_huge(pudp, phys, prot);
 
@@ -805,13 +849,44 @@ void __init early_fixmap_init(void)
 		pudp = pud_offset_kimg(pgdp, addr);
 	} else {
 		if (pgd_none(pgd))
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+			/*
+			 * Set hierarchical control of access permissions for
+			 * kernel PTEs that point to a next-level page table:
+			 * no EL0 data & instruction access.
+			 */
+			__pgd_populate(pgdp, __pa_symbol(bm_pud),
+				       PUD_TYPE_TABLE |
+				       PUD_TABLE_KERNEL |
+				       PUD_TABLE_UXN);
+#else
 			__pgd_populate(pgdp, __pa_symbol(bm_pud), PUD_TYPE_TABLE);
+#endif
 		pudp = fixmap_pud(addr);
 	}
 	if (pud_none(READ_ONCE(*pudp)))
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pud_populate(pudp, __pa_symbol(bm_pmd),
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+#else
 		__pud_populate(pudp, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
+#endif
 	pmdp = fixmap_pmd(addr);
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Set hierarchical control of access permissions for kernel PTEs that
+	 * point to a next-level page table: no EL0 data & instruction access.
+	 */
+	__pmd_populate(pmdp, __pa_symbol(bm_pte),
+		       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+#else
 	__pmd_populate(pmdp, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
+#endif
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which
@@ -926,6 +1001,14 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys)
 
 int __init arch_ioremap_pud_supported(void)
 {
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Don't use huge page of this level if it leaves no mid-level table
+	 * descriptors.
+	 */
+	if (CONFIG_PGTABLE_LEVELS < 4)
+		return 0;
+#endif
 	/*
 	 * Only 4k granule supports level 1 block mappings.
 	 * SW table walks can't handle removal of intermediate entries.
@@ -936,6 +1019,14 @@ int __init arch_ioremap_pud_supported(void)
 
 int __init arch_ioremap_pmd_supported(void)
 {
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	/*
+	 * Don't use huge page of this level if it leaves no mid-level table
+	 * descriptors.
+	 */
+	if (CONFIG_PGTABLE_LEVELS < 3)
+		return 0;
+#endif
 	/* See arch_ioremap_pud_supported() */
 	return !IS_ENABLED(CONFIG_ARM64_PTDUMP_DEBUGFS);
 }

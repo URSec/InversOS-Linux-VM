@@ -307,6 +307,36 @@ alternative_else_nop_endif
 	ct_user_enter
 	.endif
 
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	.if	\el == 0
+	/*
+	 * For EL0t, clear TCR_EL1.HPD1 to enable hierarchical control of
+	 * access permissions.  For EL1t/EL2t, set TCR_EL1.HPD1 to disable it.
+	 */
+	tst	x22, #PSR_MODE_MASK
+	cset	x23, ne				// x23 == 1 <=> inversos task
+	mrs	x24, tcr_el1
+	tst	x24, #TCR_HPD1
+	cset	x25, ne				// x25 == 1 <=> TCR_EL1.HPD1 set
+	eor	x23, x23, x25
+	cbz	x23, 3f				// Skip updating TCR_EL1 if
+						// x23 ^ x25 == 0
+	cbz	x25, 1f
+	and	x24, x24, #~TCR_HPD1
+	b	2f
+1:
+	orr	x24, x24, #TCR_HPD1
+2:
+	msr	tcr_el1, x24
+	isb
+	/* Make sure stale local TLB is invalidated. */
+	tlbi	vmalle1
+	dsb	nsh
+	isb
+3:
+	.endif
+#endif
+
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Restore access to TTBR0_EL1. If returning to EL0, no need for SPSR

@@ -28,7 +28,7 @@
  * with 4K (section size = 2M) but not with 16K (section size = 32M) or
  * 64K (section size = 512M).
  */
-#ifdef CONFIG_ARM64_4K_PAGES
+#if defined(CONFIG_ARM64_4K_PAGES) && (!defined(CONFIG_ARM64_INVERSOS_HPDS) || CONFIG_PGTABLE_LEVELS > 2)
 #define ARM64_SWAPPER_USES_SECTION_MAPS 1
 #else
 #define ARM64_SWAPPER_USES_SECTION_MAPS 0

@@ -50,7 +50,17 @@ static pte_t *__init kasan_pte_offset(pmd_t *pmdp, unsigned long addr, int node,
 	if (pmd_none(READ_ONCE(*pmdp))) {
 		phys_addr_t pte_phys = early ? __pa_symbol(kasan_zero_pte)
 					     : kasan_alloc_zeroed_page(node);
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pmd_populate(pmdp, pte_phys,
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+#else
 		__pmd_populate(pmdp, pte_phys, PMD_TYPE_TABLE);
+#endif
 	}
 
 	return early ? pte_offset_kimg(pmdp, addr)
@@ -63,7 +73,17 @@ static pmd_t *__init kasan_pmd_offset(pud_t *pudp, unsigned long addr, int node,
 	if (pud_none(READ_ONCE(*pudp))) {
 		phys_addr_t pmd_phys = early ? __pa_symbol(kasan_zero_pmd)
 					     : kasan_alloc_zeroed_page(node);
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pud_populate(pudp, pmd_phys,
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+#else
 		__pud_populate(pudp, pmd_phys, PMD_TYPE_TABLE);
+#endif
 	}
 
 	return early ? pmd_offset_kimg(pudp, addr) : pmd_offset(pudp, addr);
@@ -75,7 +95,17 @@ static pud_t *__init kasan_pud_offset(pgd_t *pgdp, unsigned long addr, int node,
 	if (pgd_none(READ_ONCE(*pgdp))) {
 		phys_addr_t pud_phys = early ? __pa_symbol(kasan_zero_pud)
 					     : kasan_alloc_zeroed_page(node);
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+		/*
+		 * Set hierarchical control of access permissions for kernel
+		 * PTEs that point to a next-level page table: no EL0 data &
+		 * instruction access.
+		 */
+		__pgd_populate(pgdp, pud_phys,
+			       PMD_TYPE_TABLE | PMD_TABLE_KERNEL | PMD_TABLE_UXN);
+#else
 		__pgd_populate(pgdp, pud_phys, PMD_TYPE_TABLE);
+#endif
 	}
 
 	return early ? pud_offset_kimg(pgdp, addr) : pud_offset(pgdp, addr);
