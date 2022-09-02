@@ -771,6 +771,17 @@ ENTRY(__enable_mmu)
 	mrs	x7, ID_AA64MMFR1_EL1
 	ubfx	x6, x7, #ID_AA64MMFR1_PAN_SHIFT, 4
 	cbz	x6, __no_granule_support
+	/*
+	 * Also check for HPDS or E0PD support.
+	 */
+#ifdef CONFIG_ARM64_INVERSOS_HPDS
+	ubfx	x6, x7, #ID_AA64MMFR1_HPD_SHIFT, 4
+	cbz	x6, __no_granule_support
+#else /* defined(CONFIG_ARM64_INVERSOS_E0PD) */
+	mrs	x7, ID_AA64MMFR2_EL1
+	ubfx	x6, x7, #ID_AA64MMFR2_E0PD_SHIFT, 4
+	cbz	x6, __no_granule_support
+#endif
 #endif
 	update_early_cpu_boot_status 0, x1, x2
 	adrp	x1, idmap_pg_dir
