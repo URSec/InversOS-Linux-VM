@@ -132,6 +132,24 @@
 #define PMD_TABLE_BIT		(_AT(pmdval_t, 1) << 1)
 
 /*
+ * Level 1 table attributes.
+ */
+#define PUD_TABLE_PXN		(_AT(pudval_t, 1) << 59)
+#define PUD_TABLE_UXN		(_AT(pudval_t, 1) << 60)
+#define PUD_TABLE_KERNEL	(_AT(pudval_t, 1) << 61)	/* APTable[1] */
+#define PUD_TABLE_RDONLY	(_AT(pudval_t, 1) << 62)	/* APTable[2] */
+#define PUD_TABLE_NS		(_AT(pudval_t, 1) << 63)
+
+/*
+ * Level 2 table attributes.
+ */
+#define PMD_TABLE_PXN		(_AT(pmdval_t, 1) << 59)
+#define PMD_TABLE_UXN		(_AT(pmdval_t, 1) << 60)
+#define PMD_TABLE_KERNEL	(_AT(pmdval_t, 1) << 61)	/* APTable[1] */
+#define PMD_TABLE_RDONLY	(_AT(pmdval_t, 1) << 62)	/* APTable[2] */
+#define PMD_TABLE_NS		(_AT(pmdval_t, 1) << 63)
+
+/*
  * Section
  */
 #define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
@@ -291,6 +309,7 @@
 #define TCR_TBI0		(UL(1) << 37)
 #define TCR_HA			(UL(1) << 39)
 #define TCR_HD			(UL(1) << 40)
+#define TCR_HPD1		(UL(1) << 42)
 #define TCR_NFD1		(UL(1) << 54)
 
 /*
