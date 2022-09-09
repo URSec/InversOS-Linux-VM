@@ -45,6 +45,10 @@
 #include <linux/mm_types.h>
 #include <linux/sched.h>
 
+#ifdef CONFIG_ARM64_INVERSOS
+#include <asm/inversos.h>
+#endif
+
 extern void __pte_error(const char *file, int line, unsigned long val);
 extern void __pmd_error(const char *file, int line, unsigned long val);
 extern void __pud_error(const char *file, int line, unsigned long val);
@@ -299,10 +303,10 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 		pte = clear_pte_bit(pte, __pgprot(PTE_USER));
 
 		/*
-		 * Set proper execution permissions for code pages of
+		 * Set proper execution permissions for vetted code pages of
 		 * inversos tasks; they run in EL1t/EL2t.
 		 */
-		if (pte_user_exec(pte)) {
+		if (pte_user_exec(pte) && !inversos_scan_code_page(mm, addr, pte)) {
 			pte = set_pte_bit(pte, __pgprot(PTE_UXN));
 			pte = clear_pte_bit(pte, __pgprot(PTE_PXN));
 		}
