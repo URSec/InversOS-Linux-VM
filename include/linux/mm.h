@@ -1279,6 +1279,9 @@ static inline void clear_page_pfmemalloc(struct page *page)
 #define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned small page */
 #define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
 #define VM_FAULT_SIGSEGV 0x0040
+#ifdef CONFIG_ARM64_INVERSOS
+#define VM_FAULT_SIGILL	0x0080
+#endif
 
 #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
 #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
@@ -1289,10 +1292,33 @@ static inline void clear_page_pfmemalloc(struct page *page)
 					 * and needs fsync() to complete (for
 					 * synchronous page faults in DAX) */
 
+#ifdef CONFIG_ARM64_INVERSOS
+#define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
+			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
+			 VM_FAULT_FALLBACK | VM_FAULT_SIGILL)
+#else
 #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_SIGSEGV | \
 			 VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE | \
 			 VM_FAULT_FALLBACK)
+#endif
 
+#ifdef CONFIG_ARM64_INVERSOS
+#define VM_FAULT_RESULT_TRACE \
+	{ VM_FAULT_OOM,			"OOM" }, \
+	{ VM_FAULT_SIGBUS,		"SIGBUS" }, \
+	{ VM_FAULT_MAJOR,		"MAJOR" }, \
+	{ VM_FAULT_WRITE,		"WRITE" }, \
+	{ VM_FAULT_HWPOISON,		"HWPOISON" }, \
+	{ VM_FAULT_HWPOISON_LARGE,	"HWPOISON_LARGE" }, \
+	{ VM_FAULT_SIGSEGV,		"SIGSEGV" }, \
+	{ VM_FAULT_SIGILL,		"SIGILL" }, \
+	{ VM_FAULT_NOPAGE,		"NOPAGE" }, \
+	{ VM_FAULT_LOCKED,		"LOCKED" }, \
+	{ VM_FAULT_RETRY,		"RETRY" }, \
+	{ VM_FAULT_FALLBACK,		"FALLBACK" }, \
+	{ VM_FAULT_DONE_COW,		"DONE_COW" }, \
+	{ VM_FAULT_NEEDDSYNC,		"NEEDDSYNC" }
+#else
 #define VM_FAULT_RESULT_TRACE \
 	{ VM_FAULT_OOM,			"OOM" }, \
 	{ VM_FAULT_SIGBUS,		"SIGBUS" }, \
@@ -1307,6 +1333,7 @@ static inline void clear_page_pfmemalloc(struct page *page)
 	{ VM_FAULT_FALLBACK,		"FALLBACK" }, \
 	{ VM_FAULT_DONE_COW,		"DONE_COW" }, \
 	{ VM_FAULT_NEEDDSYNC,		"NEEDDSYNC" }
+#endif
 
 /* Encode hstate index for a hwpoisoned large page */
 #define VM_FAULT_SET_HINDEX(x) ((x) << 12)

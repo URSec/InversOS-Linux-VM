@@ -487,9 +487,11 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 
 	if (is_el0_instruction_abort(esr)) {
 		vm_flags = VM_EXEC;
+		mm_flags |= FAULT_FLAG_INSTRUCTION;
 #ifdef CONFIG_ARM64_INVERSOS
 	} else if (is_el0_inversos_instruction_abort(esr, regs)) {
 		vm_flags = VM_EXEC;
+		mm_flags |= FAULT_FLAG_INSTRUCTION;
 #endif
 	} else if ((esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM)) {
 		vm_flags = VM_WRITE;
@@ -624,6 +626,15 @@ retry:
 		si.si_signo	= SIGBUS;
 		si.si_code	= BUS_MCEERR_AR;
 		si.si_addr_lsb	= PAGE_SHIFT;
+#ifdef CONFIG_ARM64_INVERSOS
+	} else if (fault & VM_FAULT_SIGILL) {
+		/*
+		 * Tried to execute code in a page that contains illegal
+		 * instruction(s) caught by our code scanner.
+		 */
+		si.si_signo	= SIGILL;
+		si.si_code	= ILL_ILLOPC;
+#endif
 	} else {
 		/*
 		 * Something tried to access memory that isn't in our memory

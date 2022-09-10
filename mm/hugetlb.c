@@ -4087,6 +4087,14 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 								vma, haddr);
 	}
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (mm->context.inversos && pte_user_exec(entry) &&
+	    (flags & FAULT_FLAG_INSTRUCTION)) {
+		ret = VM_FAULT_SIGILL;
+		goto out_mutex;
+	}
+#endif
+
 	ptl = huge_pte_lock(h, mm, ptep);
 
 	/* Check for a racing update before calling hugetlb_cow */

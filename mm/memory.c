@@ -4191,6 +4191,12 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 	if (pte_protnone(vmf->orig_pte) && vma_is_accessible(vmf->vma))
 		return do_numa_page(vmf);
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (vmf->vma->vm_mm->context.inversos && pte_user_exec(vmf->orig_pte) &&
+	    (vmf->flags & FAULT_FLAG_INSTRUCTION))
+		return VM_FAULT_SIGILL;
+#endif
+
 	vmf->ptl = pte_lockptr(vmf->vma->vm_mm, vmf->pmd);
 	spin_lock(vmf->ptl);
 	entry = vmf->orig_pte;
