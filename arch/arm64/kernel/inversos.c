@@ -39,6 +39,13 @@ enum {
 	ILLEGAL_MSR_IMM	= 1,
 	ILLEGAL_MSR_REG	= 2,
 	ILLEGAL_MRS_REG	= 3,
+	ILLEGAL_AT	= 4,
+	ILLEGAL_CFP	= 5,
+	ILLEGAL_CPP	= 6,
+	ILLEGAL_DVP	= 7,
+	ILLEGAL_DC_IC	= 8,
+	ILLEGAL_TLBI	= 9,
+	ILLEGAL_SYSL	= 10,
 	/* TODO: Add instructions of interest. */
 };
 
@@ -232,6 +239,73 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		default:
 			return illegal_insn(mm, addr, insn, type);
 		}
+	}
+	/* AT */
+	else if (aarch64_insn_is_at(insn)) {
+		type = ILLEGAL_AT;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* CFP */
+	else if (aarch64_insn_is_cfp(insn)) {
+		type = ILLEGAL_CFP;
+		if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_ENRCTX))
+			return illegal_insn(mm, addr, insn, type);
+	}
+	/* CPP */
+	else if (aarch64_insn_is_cpp(insn)) {
+		type = ILLEGAL_CPP;
+		if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_ENRCTX))
+			return illegal_insn(mm, addr, insn, type);
+	}
+	/* DVP */
+	else if (aarch64_insn_is_dvp(insn)) {
+		type = ILLEGAL_DVP;
+		if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_ENRCTX))
+			return illegal_insn(mm, addr, insn, type);
+	}
+	/* DC/IC */
+	else if (aarch64_insn_is_dc_ic(insn)) {
+		type = ILLEGAL_DC_IC;
+		switch (aarch64_insn_extract_system_reg(insn)) {
+		/* IC accessible from EL0 if SCTLR_EL1.UCI == 1 */
+		case EXTRACTED(SYS_IC_IVAU):
+		/* DC accessible from EL0 if SCTLR_EL1.UCI == 1 */
+		case EXTRACTED(SYS_DC_CVAC):
+		case EXTRACTED(SYS_DC_CGVAC):
+		case EXTRACTED(SYS_DC_CGDVAC):
+		case EXTRACTED(SYS_DC_CVAU):
+		case EXTRACTED(SYS_DC_CVAP):
+		case EXTRACTED(SYS_DC_CGVAP):
+		case EXTRACTED(SYS_DC_CGDVAP):
+		case EXTRACTED(SYS_DC_CVADP):
+		case EXTRACTED(SYS_DC_CGVADP):
+		case EXTRACTED(SYS_DC_CGDVADP):
+		case EXTRACTED(SYS_DC_CIVAC):
+		case EXTRACTED(SYS_DC_CIGVAC):
+		case EXTRACTED(SYS_DC_CIGDVAC):
+			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UCI))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* DC accessible from EL0 if SCTLR_EL1.DZE == 1 */
+		case EXTRACTED(SYS_DC_ZVA):
+		case EXTRACTED(SYS_DC_GVA):
+		case EXTRACTED(SYS_DC_GZVA):
+			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_DZE))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		default:
+			return illegal_insn(mm, addr, insn, type);
+		}
+	}
+	/* TLBI */
+	else if (aarch64_insn_is_tlbi(insn)) {
+		type = ILLEGAL_TLBI;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* SYSL */
+	else if (aarch64_insn_is_sysl(insn)) {
+		type = ILLEGAL_SYSL;
+		return illegal_insn(mm, addr, insn, type);
 	}
 
 	/* TODO: Enumerate and handle instructions of interest. */
