@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 
+#include <asm/arch_timer.h>
 #include <asm/insn.h>
 #include <asm/inversos.h>
 #include <asm/pgtable.h>
@@ -36,6 +37,8 @@
 enum {
 	LEGAL_INSN	= 0,
 	ILLEGAL_MSR_IMM	= 1,
+	ILLEGAL_MSR_REG	= 2,
+	ILLEGAL_MRS_REG	= 3,
 	/* TODO: Add instructions of interest. */
 };
 
@@ -51,6 +54,12 @@ static inline int illegal_insn(struct mm_struct *mm, unsigned long addr,
 {
 	return type;
 }
+
+/*
+ * Convert a system register/instruction value in MRS/MSR/SYS encodings to an
+ * extracted one.
+ */
+#define EXTRACTED(sysreg)	((sysreg) >> Op2_shift)
 
 /*
  * Scan an instruction @insn to be mapped into @mm at virtual address @addr.
@@ -78,6 +87,146 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		case AARCH64_INSN_SPCLIMMREG_DAIFSET:
 		case AARCH64_INSN_SPCLIMMREG_DAIFCLR:
 			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UMA))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		default:
+			return illegal_insn(mm, addr, insn, type);
+		}
+	}
+	/* MSR register */
+	else if (aarch64_insn_is_msr_reg(insn)) {
+		type = ILLEGAL_MSR_REG;
+		switch (aarch64_insn_extract_system_reg(insn)) {
+		/* Registers accessible from EL0 */
+		case AARCH64_INSN_SPCLREG_FPCR:
+		case AARCH64_INSN_SPCLREG_FPSR:
+		case AARCH64_INSN_SPCLREG_NZCV:
+		case AARCH64_INSN_SPCLREG_DIT:
+		case AARCH64_INSN_SPCLREG_SSBS:
+		case AARCH64_INSN_SPCLREG_TCO:
+		case EXTRACTED(SYS_TPIDR_EL0):
+			break;
+		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
+		case AARCH64_INSN_SPCLREG_DAIF:
+			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UMA))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Debug registers accessible from EL0 if !EL2 && MDSCR_EL1.TDCC == 0 */
+		case EXTRACTED(SYS_DBGDTR_EL0):
+		case EXTRACTED(SYS_DBGDTRTX_EL0):
+			if (is_kernel_in_hyp_mode())
+				return illegal_insn(mm, addr, insn, type);
+			else if (read_sysreg(mdscr_el1) & DBG_MDSCR_TDCC)
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.EL0PTEN == 1 */
+		case EXTRACTED(SYS_CNTP_CTL_EL0):
+		case EXTRACTED(SYS_CNTP_CVAL_EL0):
+		case EXTRACTED(SYS_CNTP_TVAL_EL0):
+			if (!(read_sysreg(cntkctl_el1) & ARCH_TIMER_USR_PT_ACCESS_EN))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.EL0VTEN == 1 */
+		case EXTRACTED(SYS_CNTV_CTL_EL0):
+		case EXTRACTED(SYS_CNTV_CVAL_EL0):
+		case EXTRACTED(SYS_CNTV_TVAL_EL0):
+			if (!(read_sysreg(cntkctl_el1) & ARCH_TIMER_USR_VT_ACCESS_EN))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		default:
+			return illegal_insn(mm, addr, insn, type);
+		}
+	}
+	/* MRS register */
+	else if (aarch64_insn_is_mrs(insn)) {
+		type = ILLEGAL_MRS_REG;
+		switch (aarch64_insn_extract_system_reg(insn)) {
+		/* Registers accessible from EL0 */
+		case AARCH64_INSN_SPCLREG_FPCR:
+		case AARCH64_INSN_SPCLREG_FPSR:
+		case AARCH64_INSN_SPCLREG_NZCV:
+		case AARCH64_INSN_SPCLREG_DIT:
+		case AARCH64_INSN_SPCLREG_SSBS:
+		case AARCH64_INSN_SPCLREG_TCO:
+		case EXTRACTED(SYS_DCZID_EL0):
+		case EXTRACTED(SYS_RNDR_EL0):
+		case EXTRACTED(SYS_RNDRRS_EL0):
+		case EXTRACTED(SYS_TPIDR_EL0):
+		case EXTRACTED(SYS_TPIDRRO_EL0):
+		/* Allow reading ID registers */
+		case EXTRACTED(SYS_MIDR_EL1):
+		case EXTRACTED(SYS_MPIDR_EL1):
+		case EXTRACTED(SYS_REVIDR_EL1):
+		case EXTRACTED(SYS_ID_AA64PFR0_EL1):
+		case EXTRACTED(SYS_ID_AA64PFR1_EL1):
+		case EXTRACTED(SYS_ID_AA64DFR0_EL1):
+		case EXTRACTED(SYS_ID_AA64DFR1_EL1):
+		case EXTRACTED(SYS_ID_AA64AFR0_EL1):
+		case EXTRACTED(SYS_ID_AA64AFR1_EL1):
+		case EXTRACTED(SYS_ID_AA64ISAR0_EL1):
+		case EXTRACTED(SYS_ID_AA64ISAR1_EL1):
+		case EXTRACTED(SYS_ID_AA64ISAR2_EL1):
+		case EXTRACTED(SYS_ID_AA64MMFR0_EL1):
+		case EXTRACTED(SYS_ID_AA64MMFR1_EL1):
+		case EXTRACTED(SYS_ID_AA64MMFR2_EL1):
+			break;
+		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
+		case AARCH64_INSN_SPCLREG_DAIF:
+			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UMA))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* CTR_EL0 accessible from EL0 if SCTLR_EL1.UCT == 1 */
+		case EXTRACTED(SYS_CTR_EL0):
+			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UCT))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* SCXTNUM_EL0 accessible from EL0 if !EL2 && SCTLR_EL1.TSCXT == 0 */
+		case EXTRACTED(SYS_SCXTNUM_EL0):
+			if (is_kernel_in_hyp_mode())
+				return illegal_insn(mm, addr, insn, type);
+			else if (read_sysreg(sctlr_el1) & SCTLR_EL1_TSCXT)
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Debug registers accessible from EL0 if !EL2 && MDSCR_EL1.TDCC == 0 */
+		case EXTRACTED(SYS_DBGDTR_EL0):
+		case EXTRACTED(SYS_DBGDTRRX_EL0):
+		case EXTRACTED(SYS_MDCCSR_EL0):
+			if (is_kernel_in_hyp_mode())
+				return illegal_insn(mm, addr, insn, type);
+			else if (read_sysreg(mdscr_el1) & DBG_MDSCR_TDCC)
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.{EL0PCTEN,EL0VCTEN} != {0,0} */
+		case EXTRACTED(SYS_CNTFRQ_EL0):
+			if (!(read_sysreg(cntkctl_el1) &
+			      (ARCH_TIMER_USR_PCT_ACCESS_EN |
+			       ARCH_TIMER_USR_VCT_ACCESS_EN)))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.EL0PCTEN == 1 */
+		case EXTRACTED(SYS_CNTPCT_EL0):
+		case EXTRACTED(SYS_CNTPCTSS_EL0):
+			if (!(read_sysreg(cntkctl_el1) & ARCH_TIMER_USR_PCT_ACCESS_EN))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.EL0VCTEN == 1 */
+		case EXTRACTED(SYS_CNTVCT_EL0):
+		case EXTRACTED(SYS_CNTVCTSS_EL0):
+			if (!(read_sysreg(cntkctl_el1) & ARCH_TIMER_USR_VCT_ACCESS_EN))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.EL0PTEN == 1 */
+		case EXTRACTED(SYS_CNTP_CTL_EL0):
+		case EXTRACTED(SYS_CNTP_CVAL_EL0):
+		case EXTRACTED(SYS_CNTP_TVAL_EL0):
+			if (!(read_sysreg(cntkctl_el1) & ARCH_TIMER_USR_PT_ACCESS_EN))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* Timer registers accessible from EL0 if CNTKCTL_EL1.EL0VTEN == 1 */
+		case EXTRACTED(SYS_CNTV_CTL_EL0):
+		case EXTRACTED(SYS_CNTV_CVAL_EL0):
+		case EXTRACTED(SYS_CNTV_TVAL_EL0):
+			if (!(read_sysreg(cntkctl_el1) & ARCH_TIMER_USR_VT_ACCESS_EN))
 				return illegal_insn(mm, addr, insn, type);
 			break;
 		default:
