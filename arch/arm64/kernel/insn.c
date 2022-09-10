@@ -1352,6 +1352,14 @@ u32 aarch64_insn_extract_system_reg(u32 insn)
 	return (insn & 0x1FFFE0) >> 5;
 }
 
+/*
+ * Extract the Op/CR data from an msr immediate instruction.
+ */
+u32 aarch64_insn_extract_imm_system_reg(u32 insn)
+{
+	return (insn & 0x1FF0E0) >> 5;
+}
+
 bool aarch32_insn_is_wide(u32 insn)
 {
 	return insn >= 0xe800;

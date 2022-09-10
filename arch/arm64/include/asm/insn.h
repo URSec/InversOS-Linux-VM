@@ -145,6 +145,20 @@ enum aarch64_insn_special_register {
 	AARCH64_INSN_SPCLREG_SP_EL2	= 0xF210
 };
 
+enum aarch64_insn_special_immediate_register {
+	AARCH64_INSN_SPCLIMMREG_CFINV	= 0x0200,
+	AARCH64_INSN_SPCLIMMREG_AXFLAG	= 0x0201,
+	AARCH64_INSN_SPCLIMMREG_XAFLAG	= 0x0202,
+	AARCH64_INSN_SPCLIMMREG_UAO	= 0x0203,
+	AARCH64_INSN_SPCLIMMREG_PAN	= 0x0204,
+	AARCH64_INSN_SPCLIMMREG_SPSEL	= 0x0205,
+	AARCH64_INSN_SPCLIMMREG_SSBS	= 0x1A01,
+	AARCH64_INSN_SPCLIMMREG_DIT	= 0x1A02,
+	AARCH64_INSN_SPCLIMMREG_TCO	= 0x1A04,
+	AARCH64_INSN_SPCLIMMREG_DAIFSET	= 0x1A06,
+	AARCH64_INSN_SPCLIMMREG_DAIFCLR	= 0x1A07
+};
+
 enum aarch64_insn_variant {
 	AARCH64_INSN_VARIANT_32BIT,
 	AARCH64_INSN_VARIANT_64BIT
@@ -467,6 +481,7 @@ bool aarch32_insn_is_wide(u32 insn);
 #define A32_RT2_OFFSET	 0
 
 u32 aarch64_insn_extract_system_reg(u32 insn);
+u32 aarch64_insn_extract_imm_system_reg(u32 insn);
 u32 aarch32_insn_extract_reg_num(u32 insn, int offset);
 u32 aarch32_insn_mcr_extract_opc2(u32 insn);
 u32 aarch32_insn_mcr_extract_crm(u32 insn);

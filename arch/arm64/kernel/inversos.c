@@ -24,8 +24,10 @@
 #include <linux/mm.h>
 #include <linux/page-flags.h>
 
+#include <asm/insn.h>
 #include <asm/inversos.h>
 #include <asm/pgtable.h>
+#include <asm/sysreg.h>
 
 /*
  * Types of (il)legal instructions found in an inversos task.  All illegal
@@ -33,8 +35,22 @@
  */
 enum {
 	LEGAL_INSN	= 0,
+	ILLEGAL_MSR_IMM	= 1,
 	/* TODO: Add instructions of interest. */
 };
+
+/*
+ * This is where we can do something (e.g., print out a message) once we find
+ * an illegal instruction @insn of type @type to be mapped into @mm at virtual
+ * address @addr.
+ *
+ * Return @type in the end.
+ */
+static inline int illegal_insn(struct mm_struct *mm, unsigned long addr,
+			       u32 insn, int type)
+{
+	return type;
+}
 
 /*
  * Scan an instruction @insn to be mapped into @mm at virtual address @addr.
@@ -44,6 +60,31 @@ enum {
  */
 static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 {
+	int type;
+
+	/* MSR immediate */
+	if (aarch64_insn_is_msr_imm(insn)) {
+		type = ILLEGAL_MSR_IMM;
+		switch (aarch64_insn_extract_imm_system_reg(insn)) {
+		/* Special registers accessible from EL0 */
+		case AARCH64_INSN_SPCLIMMREG_CFINV:
+		case AARCH64_INSN_SPCLIMMREG_AXFLAG:
+		case AARCH64_INSN_SPCLIMMREG_XAFLAG:
+		case AARCH64_INSN_SPCLIMMREG_SSBS:
+		case AARCH64_INSN_SPCLIMMREG_DIT:
+		case AARCH64_INSN_SPCLIMMREG_TCO:
+			break;
+		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
+		case AARCH64_INSN_SPCLIMMREG_DAIFSET:
+		case AARCH64_INSN_SPCLIMMREG_DAIFCLR:
+			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UMA))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		default:
+			return illegal_insn(mm, addr, insn, type);
+		}
+	}
+
 	/* TODO: Enumerate and handle instructions of interest. */
 	return LEGAL_INSN;
 }
