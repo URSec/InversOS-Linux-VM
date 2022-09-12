@@ -46,6 +46,8 @@ enum {
 	ILLEGAL_DC_IC	= 8,
 	ILLEGAL_TLBI	= 9,
 	ILLEGAL_SYSL	= 10,
+	ILLEGAL_HVC	= 11,
+	ILLEGAL_SMC	= 12,
 	/* TODO: Add instructions of interest. */
 };
 
@@ -305,6 +307,16 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 	/* SYSL */
 	else if (aarch64_insn_is_sysl(insn)) {
 		type = ILLEGAL_SYSL;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* HVC */
+	else if (aarch64_insn_is_hvc(insn)) {
+		type = ILLEGAL_HVC;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* SMC */
+	else if (aarch64_insn_is_smc(insn)) {
+		type = ILLEGAL_SMC;
 		return illegal_insn(mm, addr, insn, type);
 	}
 
