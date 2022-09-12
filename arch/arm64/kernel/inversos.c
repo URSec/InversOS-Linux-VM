@@ -48,6 +48,9 @@ enum {
 	ILLEGAL_SYSL	= 10,
 	ILLEGAL_HVC	= 11,
 	ILLEGAL_SMC	= 12,
+	ILLEGAL_LDGM	= 13,
+	ILLEGAL_STGM	= 14,
+	ILLEGAL_STZGM	= 15,
 	/* TODO: Add instructions of interest. */
 };
 
@@ -317,6 +320,21 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 	/* SMC */
 	else if (aarch64_insn_is_smc(insn)) {
 		type = ILLEGAL_SMC;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* LDGM */
+	else if (aarch64_insn_is_ldgm(insn)) {
+		type = ILLEGAL_LDGM;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* STGM */
+	else if (aarch64_insn_is_stgm(insn)) {
+		type = ILLEGAL_STGM;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* STZGM */
+	else if (aarch64_insn_is_stzgm(insn)) {
+		type = ILLEGAL_STZGM;
 		return illegal_insn(mm, addr, insn, type);
 	}
 
