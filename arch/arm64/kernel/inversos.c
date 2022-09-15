@@ -51,6 +51,7 @@ enum {
 	ILLEGAL_LDGM	= 13,
 	ILLEGAL_STGM	= 14,
 	ILLEGAL_STZGM	= 15,
+	ILLEGAL_ERET	= 16,
 	/* TODO: Add instructions of interest. */
 };
 
@@ -335,6 +336,11 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 	/* STZGM */
 	else if (aarch64_insn_is_stzgm(insn)) {
 		type = ILLEGAL_STZGM;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* ERET */
+	else if (aarch64_insn_is_eret(insn) || aarch64_insn_is_eret_auth(insn)) {
+		type = ILLEGAL_ERET;
 		return illegal_insn(mm, addr, insn, type);
 	}
 
