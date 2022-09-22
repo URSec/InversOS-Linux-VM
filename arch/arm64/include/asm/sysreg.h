@@ -896,6 +896,15 @@
 #define CPACR_EL1_ZEN_EL0EN	(1 << 17) /* enable EL0 access, if EL1EN set */
 #define CPACR_EL1_ZEN		(CPACR_EL1_ZEN_EL1EN | CPACR_EL1_ZEN_EL0EN)
 
+#define CPACR_EL1_FPEN_EL1EN	(1 << 20) /* enable EL1 access */
+#define CPACR_EL1_FPEN_EL0EN	(1 << 21) /* enable EL0 access, if EL1EN set */
+#define CPACR_EL1_FPEN		(CPACR_EL1_FPEN_EL1EN | CPACR_EL1_FPEN_EL0EN)
+
+#define CPACR_EL1_SMEN_EL1EN	(1 << 24) /* enable EL1 access */
+#define CPACR_EL1_SMEN_EL0EN	(1 << 25) /* enable EL0 access, if EL1EN set */
+#define CPACR_EL1_SMEN		(CPACR_EL1_SMEN_EL1EN | CPACR_EL1_SMEN_EL0EN)
+
+#define CPACR_EL1_TTA		(1 << 28)
 
 /* Safe value for MPIDR_EL1: Bit31:RES1, Bit30:U:0, Bit24:MT:0 */
 #define SYS_MPIDR_SAFE_VAL		(1UL << 31)

@@ -96,6 +96,11 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		case AARCH64_INSN_SPCLIMMREG_DIT:
 		case AARCH64_INSN_SPCLIMMREG_TCO:
 			break;
+		/* Special registers accessible from EL0 if CPACR_EL1.SMEN == 3 */
+		case AARCH64_INSN_SPCLIMMREG_SVCR:
+			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != 3)
+				return illegal_insn(mm, addr, insn, type);
+			break;
 		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
 		case AARCH64_INSN_SPCLIMMREG_DAIFSET:
 		case AARCH64_INSN_SPCLIMMREG_DAIFCLR:
@@ -118,6 +123,11 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		case AARCH64_INSN_SPCLREG_SSBS:
 		case AARCH64_INSN_SPCLREG_TCO:
 		case EXTRACTED(SYS_TPIDR_EL0):
+			break;
+		/* Special registers accessible from EL0 if CPACR_EL1.SMEN == 3 */
+		case AARCH64_INSN_SPCLREG_SVCR:
+			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != 3)
+				return illegal_insn(mm, addr, insn, type);
 			break;
 		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
 		case AARCH64_INSN_SPCLREG_DAIF:
@@ -182,6 +192,11 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		case EXTRACTED(SYS_ID_AA64MMFR0_EL1):
 		case EXTRACTED(SYS_ID_AA64MMFR1_EL1):
 		case EXTRACTED(SYS_ID_AA64MMFR2_EL1):
+			break;
+		/* Special registers accessible from EL0 if CPACR_EL1.SMEN == 3 */
+		case AARCH64_INSN_SPCLREG_SVCR:
+			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != 3)
+				return illegal_insn(mm, addr, insn, type);
 			break;
 		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
 		case AARCH64_INSN_SPCLREG_DAIF:
