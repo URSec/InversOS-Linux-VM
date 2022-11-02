@@ -98,7 +98,7 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 			break;
 		/* Special registers accessible from EL0 if CPACR_EL1.SMEN == 3 */
 		case AARCH64_INSN_SPCLIMMREG_SVCR:
-			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != 3)
+			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != CPACR_EL1_SMEN)
 				return illegal_insn(mm, addr, insn, type);
 			break;
 		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
@@ -126,7 +126,7 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 			break;
 		/* Special registers accessible from EL0 if CPACR_EL1.SMEN == 3 */
 		case AARCH64_INSN_SPCLREG_SVCR:
-			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != 3)
+			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != CPACR_EL1_SMEN)
 				return illegal_insn(mm, addr, insn, type);
 			break;
 		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
@@ -195,7 +195,7 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 			break;
 		/* Special registers accessible from EL0 if CPACR_EL1.SMEN == 3 */
 		case AARCH64_INSN_SPCLREG_SVCR:
-			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != 3)
+			if ((read_sysreg(cpacr_el1) & CPACR_EL1_SMEN) != CPACR_EL1_SMEN)
 				return illegal_insn(mm, addr, insn, type);
 			break;
 		/* Special registers accessible from EL0 if SCTLR_EL1.UMA == 1 */
