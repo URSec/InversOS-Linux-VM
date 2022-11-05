@@ -253,6 +253,10 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 
 extern void __sync_icache_dcache(pte_t pteval);
 
+#ifdef CONFIG_ARM64_INVERSOS
+extern struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr);
+#endif
+
 /*
  * PTE bits configuration in the presence of hardware Dirty Bit Management
  * (PTE_WRITE == PTE_DBM):
@@ -295,12 +299,14 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 #ifdef CONFIG_ARM64_INVERSOS
 	if (mm->context.inversos && addr < TASK_SIZE) {
 		/*
-		 * Map memory for inversos tasks as EL0-inaccessible.
-		 *
-		 * TODO: Protected memory in an inversos task should have this
-		 * bit set.
+		 * Map normal memory for inversos tasks as EL0-inaccessible
+		 * and protected memory as EL0-accessible.
 		 */
-		pte = clear_pte_bit(pte, __pgprot(PTE_USER));
+		struct vm_area_struct *vma = find_vma(mm, addr);
+		if (vma && vma->vm_start <= addr && inversos_vma_user(vma))
+			pte = set_pte_bit(pte, __pgprot(PTE_USER));
+		else
+			pte = clear_pte_bit(pte, __pgprot(PTE_USER));
 
 		/*
 		 * Set proper execution permissions for vetted code pages of
