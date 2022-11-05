@@ -328,6 +328,9 @@ struct vm_area_struct {
 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
 #endif
 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
+#ifdef CONFIG_ARM64_INVERSOS
+	unsigned long inversos;		/* Memory type in an inversos task */
+#endif
 } __randomize_layout;
 
 struct core_thread {

@@ -23,6 +23,10 @@
 
 #include <linux/types.h>
 
+enum {
+	INVERSOS_VMA_NONE = 0,
+};
+
 int inversos_scan_code_page(struct mm_struct *mm, unsigned long addr, pte_t pte);
 
 #endif /* __ASM_INVERSOS_H */
