@@ -2797,6 +2797,16 @@ int vm_munmap(unsigned long start, size_t len)
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (mm->context.inversos) {
+		ret = inversos_check_mmap(mm, start, len);
+		if (ret) {
+			up_write(&mm->mmap_sem);
+			return ret;
+		}
+	}
+#endif
+
 	ret = do_munmap(mm, start, len, &uf);
 	up_write(&mm->mmap_sem);
 	userfaultfd_unmap_complete(mm, &uf);

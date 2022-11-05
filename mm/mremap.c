@@ -548,6 +548,16 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	if (down_write_killable(&current->mm->mmap_sem))
 		return -EINTR;
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (mm->context.inversos) {
+		ret = inversos_check_mmap(mm, addr, old_len);
+		if (ret) {
+			up_write(&current->mm->mmap_sem);
+			return ret;
+		}
+	}
+#endif
+
 	if (flags & MREMAP_FIXED) {
 		ret = mremap_to(addr, old_len, new_addr, new_len,
 				&locked, &uf, &uf_unmap_early, &uf_unmap);

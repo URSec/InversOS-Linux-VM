@@ -850,6 +850,15 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 		prev = vma;
 
 	blk_start_plug(&plug);
+
+#ifdef CONFIG_ARM64_INVERSOS
+	if (current->mm->context.inversos) {
+		error = inversos_check_mmap(current->mm, start, len_in);
+		if (error)
+			goto out;
+	}
+#endif
+
 	for (;;) {
 		/* Still start < end. */
 		error = -ENOMEM;

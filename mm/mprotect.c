@@ -517,6 +517,14 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	if (down_write_killable(&current->mm->mmap_sem))
 		return -EINTR;
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (current->mm->context.inversos) {
+		error = inversos_check_mmap(current->mm, start, len);
+		if (error)
+			goto out;
+	}
+#endif
+
 	/*
 	 * If userspace did not allocate the pkey, do not let
 	 * them use it here.
