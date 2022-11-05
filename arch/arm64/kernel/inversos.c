@@ -459,3 +459,50 @@ int inversos_vma_untouchable(struct vm_area_struct *vma)
 		return 0;
 	}
 }
+
+/*
+ * Check if a memory map operation that tries to modify the mapping of
+ * [@addr, @addr + @len) in @mm will touch any vma structure which disallows
+ * user modification.  The caller must hold down_read(&mm->mmap_sema).
+ *
+ * Return 0 if no such vma structure will be touched, or -EPERM otherwise.
+ */
+int inversos_check_mmap(struct mm_struct *mm, unsigned long addr,
+			unsigned long len)
+{
+	unsigned long limit = addr + len;
+	struct vm_area_struct *vma, *end;
+
+	/* Non-inversos tasks do not have restricted VM areas. */
+	if (!mm->context.inversos)
+		return 0;
+
+	/*
+	 * Find the vma structure next to the last one that may cover any
+	 * address in [@addr, @limit).
+	 */
+	end = find_vma(mm, limit - 1);
+	if (end && end->vm_start < limit)
+		end = end->vm_next;
+
+	/*
+	 * Find the first vma structure that may cover any address in
+	 * [@addr, @limit).
+	 */
+	vma = find_vma(mm, addr);
+
+	/*
+	 * Iterate over all vma structures in the linked list [@vma, @end) to
+	 * check overlapping.
+	 */
+	while (vma && vma != end) {
+		if ((vma->vm_start <= addr && addr < vma->vm_end) ||
+		    (vma->vm_start < limit && limit <= vma->vm_end)) {
+			if (inversos_vma_untouchable(vma))
+				return -EPERM;
+		}
+		vma = vma->vm_next;
+	}
+
+	return 0;
+}
