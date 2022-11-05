@@ -29,4 +29,7 @@ enum {
 
 int inversos_scan_code_page(struct mm_struct *mm, unsigned long addr, pte_t pte);
 
+int inversos_vma_user(struct vm_area_struct *vma);
+int inversos_vma_untouchable(struct vm_area_struct *vma);
+
 #endif /* __ASM_INVERSOS_H */

@@ -430,3 +430,32 @@ int inversos_scan_code_page(struct mm_struct *mm, unsigned long addr, pte_t pte)
 
 	return ret;
 }
+
+/*
+ * Check if a vma structure corresponds to a memory region which should be
+ * mapped with PTE_USER bit set.
+ *
+ * Return 1 if true, or 0 otherwise.
+ */
+int inversos_vma_user(struct vm_area_struct *vma)
+{
+	switch (vma->inversos) {
+	default:
+		return 0;
+	}
+}
+
+/*
+ * Check if a vma structure corresponds to a memory region which disallows user
+ * modification of its mapping (i.e., munmap(), mremap(), mprotect(), and
+ * madvise()).
+ *
+ * Return 1 if true, or 0 otherwise.
+ */
+int inversos_vma_untouchable(struct vm_area_struct *vma)
+{
+	switch (vma->inversos) {
+	default:
+		return 0;
+	}
+}
