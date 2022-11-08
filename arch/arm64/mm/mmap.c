@@ -155,3 +155,22 @@ int devmem_is_allowed(unsigned long pfn)
 }
 
 #endif
+
+const char *arch_vma_name(struct vm_area_struct *vma)
+{
+#ifdef CONFIG_ARM64_INVERSOS
+	switch (vma->inversos) {
+	default:
+		break;
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+	case INVERSOS_VMA_SHADOW_STACK:
+		return "[inversos shadow stack]";
+	case INVERSOS_VMA_SHADOW_STACK_GUARD:
+		return "[inversos shadow stack guard]";
+#endif
+	}
+#endif
+
+	return NULL;
+}
