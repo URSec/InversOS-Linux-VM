@@ -442,6 +442,12 @@ int inversos_vma_user(struct vm_area_struct *vma)
 	switch (vma->inversos) {
 	default:
 		return 0;
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+	case INVERSOS_VMA_SHADOW_STACK:
+	case INVERSOS_VMA_SHADOW_STACK_GUARD:
+		return 1;
+#endif
 	}
 }
 
@@ -457,6 +463,12 @@ int inversos_vma_untouchable(struct vm_area_struct *vma)
 	switch (vma->inversos) {
 	default:
 		return 0;
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+	case INVERSOS_VMA_SHADOW_STACK:
+	case INVERSOS_VMA_SHADOW_STACK_GUARD:
+		return 1;
+#endif
 	}
 }
 
@@ -506,3 +518,177 @@ int inversos_check_mmap(struct mm_struct *mm, unsigned long addr,
 
 	return 0;
 }
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+
+/*
+ * Set up a shadow stack area of at least @size bytes for an inversos task @tsk
+ * that either is current or shares the same address space with current.  An
+ * inaccessible guard region will be placed right preceding/next to the shadow
+ * stack to prevent overflow/underflow.
+ *
+ * Return 0 on success, or negative errno if no vma structure was set up.
+ */
+int inversos_setup_shadow_stack(struct task_struct *tsk, unsigned long size)
+{
+	int retval = -ENOMEM;
+	unsigned long ss_len = (size + PAGE_SIZE - 1) & PAGE_MASK;
+	unsigned long guard_len = 2 * PAGE_SIZE;
+	unsigned long base, len = ss_len + 2 * guard_len;
+	unsigned long unmap_len = 0;
+	struct vm_area_struct *ss = NULL, *guard1 = NULL, *guard2 = NULL;
+
+	/* Sanity checks. */
+	BUG_ON(!task_inversos(tsk));
+	BUG_ON(!tsk->mm || tsk->mm != current->mm);
+	BUG_ON(!ss_len);
+
+	/* Acquire the mmap semaphore for writing. */
+	if (down_write_killable(&tsk->mm->mmap_sem)) {
+		retval = -EINTR;
+		goto out;
+	}
+
+	/*
+	 * Find an unmapped area in the address space for the shadow stack plus
+	 * two guard regions.
+	 */
+	base = get_unmapped_area(NULL, 0, len, 0, 0);
+	if (base & ~PAGE_MASK)
+		goto out_up;
+
+	/* Allocate vma structures for the shadow stack and guard regions. */
+	guard1 = vm_area_alloc(tsk->mm);
+	if (unlikely(!guard1))
+		goto out_up;
+	ss = vm_area_alloc(tsk->mm);
+	if (unlikely(!ss))
+		goto out_free_guard1;
+	guard2 = vm_area_alloc(tsk->mm);
+	if (unlikely(!guard2))
+		goto out_free_ss;
+
+	/*
+	 * Set up the vma structure for the first guard region and insert it
+	 * into the address space.
+	 */
+	guard1->vm_start = base;
+	guard1->vm_end = guard1->vm_start + guard_len;
+	guard1->vm_flags = 0;
+	guard1->vm_page_prot = vm_get_page_prot(guard1->vm_flags);
+	guard1->inversos = INVERSOS_VMA_SHADOW_STACK_GUARD;
+	vma_set_anonymous(guard1);
+	retval = insert_vm_struct(tsk->mm, guard1);
+	if (retval)
+		goto out_free_guard2;
+	unmap_len += guard_len;
+
+	/*
+	 * Set up the vma structure for the shadow stack and insert it into the
+	 * address space.
+	 */
+	ss->vm_start = base + guard_len;
+	ss->vm_end = ss->vm_start + ss_len;
+	ss->vm_flags = VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE |
+		       VM_ACCOUNT | VM_STACK | VM_SOFTDIRTY;
+	ss->vm_page_prot = vm_get_page_prot(ss->vm_flags);
+	ss->inversos = INVERSOS_VMA_SHADOW_STACK;
+	vma_set_anonymous(ss);
+	retval = insert_vm_struct(tsk->mm, ss);
+	if (retval)
+		goto out_unmap;
+	unmap_len += ss_len;
+
+	/*
+	 * Set up the vma structure for the second guard region and insert it
+	 * into the address space.
+	 */
+	guard2->vm_start = base + guard_len + ss_len;
+	guard2->vm_end = guard2->vm_start + guard_len;
+	guard2->vm_flags = 0;
+	guard2->vm_page_prot = vm_get_page_prot(guard2->vm_flags);
+	guard2->inversos = INVERSOS_VMA_SHADOW_STACK_GUARD;
+	vma_set_anonymous(guard2);
+	retval = insert_vm_struct(tsk->mm, guard2);
+	if (retval)
+		goto out_unmap;
+	unmap_len += guard_len;
+
+	/* Update VM statistics. */
+	vm_stat_account(tsk->mm, ss->vm_flags, ss_len >> PAGE_SHIFT);
+	vm_stat_account(tsk->mm, guard1->vm_flags, guard_len >> PAGE_SHIFT);
+	vm_stat_account(tsk->mm, guard2->vm_flags, guard_len >> PAGE_SHIFT);
+
+	/* Release the mmap semaphore for writing. */
+	up_write(&tsk->mm->mmap_sem);
+
+	/* Keep track of the shadow stack top in @tsk. */
+	set_task_inversos_ss(tsk, ss->vm_end - 8);
+
+	return 0;
+
+out_unmap:
+	do_munmap(tsk->mm, base, unmap_len, NULL);
+out_free_guard2:
+	vm_area_free(guard2);
+out_free_ss:
+	vm_area_free(ss);
+out_free_guard1:
+	vm_area_free(guard1);
+out_up:
+	up_write(&tsk->mm->mmap_sem);
+out:
+	/* Set it to NULL just in case @retval is ignored by the caller. */
+	set_task_inversos_ss(tsk, 0);
+	return retval;
+}
+
+/*
+ * Tear down the shadow stack area for an inversos task @tsk which either is
+ * current or shares the same address space with current.  The guard regions
+ * around the shadow stack will also be torn down.
+ */
+void inversos_teardown_shadow_stack(struct task_struct *tsk)
+{
+	unsigned long base, len;
+	struct vm_area_struct *ss = NULL, *guard1 = NULL, *guard2 = NULL;
+
+	/* Sanity checks. */
+	BUG_ON(!task_inversos(tsk));
+	BUG_ON(!tsk->mm || tsk->mm != current->mm);
+
+	/* Bail out if no vma structure was set up. */
+	if (!task_inversos_ss(tsk))
+		return;
+
+	/* Acquire the mmap semaphore for writing. */
+	if (down_write_killable(&tsk->mm->mmap_sem))
+		return;
+
+	/* Find the vma structure for the shadow stack. */
+	ss = find_vma(tsk->mm, task_inversos_ss(tsk));
+	if (!ss)
+		goto out;
+	BUG_ON(ss->inversos != INVERSOS_VMA_SHADOW_STACK);
+
+	/* The guard regions are right around the shadow stack. */
+	guard1 = ss->vm_prev;
+	guard2 = ss->vm_next;
+	BUG_ON(!guard1 || guard1->inversos != INVERSOS_VMA_SHADOW_STACK_GUARD);
+	BUG_ON(!guard2 || guard2->inversos != INVERSOS_VMA_SHADOW_STACK_GUARD);
+	BUG_ON(guard1->vm_end != ss->vm_start);
+	BUG_ON(ss->vm_end != guard2->vm_start);
+
+	/* Unmap the whole area. */
+	base = guard1->vm_start;
+	len = guard2->vm_end - base;
+	do_munmap(tsk->mm, base, len, NULL);
+out:
+	/* Release the mmap semaphore for writing. */
+	up_write(&tsk->mm->mmap_sem);
+
+	/* Set the shadow stack top to NULL. */
+	set_task_inversos_ss(tsk, 0);
+}
+
+#endif

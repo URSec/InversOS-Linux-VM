@@ -350,6 +350,28 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		 */
 		if (clone_flags & CLONE_SETTLS)
 			p->thread.uw.tp_value = childregs->regs[3];
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+		/* Set up a shadow stack for threads in an inversos task. */
+		if ((clone_flags & CLONE_VM) && task_inversos(p)) {
+			int ret = inversos_setup_shadow_stack(
+				p, task_rlimit(p, RLIMIT_STACK)
+			);
+
+			/*
+			 * Point x28 to the shadow stack top.
+			 *
+			 * If no shadow stack was allocated, point x28 to an
+			 * address that would cause a trap when being pushed
+			 * onto.
+			 */
+			if (ret) {
+				childregs->regs[28] = 16;
+				return ret;
+			} else
+				childregs->regs[28] = task_inversos_ss(p);
+		}
+#endif
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->pstate = PSR_MODE_EL1h;
@@ -528,6 +550,12 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 void arch_setup_new_exec(void)
 {
 	current->mm->context.flags = is_compat_task() ? MMCF_AARCH32 : 0;
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+	/* Set up a shadow stack for the main thread of an inversos task. */
+	if (task_inversos(current))
+		inversos_setup_shadow_stack(current, rlimit(RLIMIT_STACK));
+#endif
 }
 
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
@@ -562,5 +590,18 @@ EXPORT_SYMBOL(task_inversos);
 void set_task_inversos(struct task_struct *tsk, unsigned long val)
 {
 	tsk->thread_info.inversos = (!!val);
+}
+#endif
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+unsigned long task_inversos_ss(const struct task_struct *tsk)
+{
+	return tsk->thread_info.inversos_ss;
+}
+EXPORT_SYMBOL(task_inversos_ss);
+
+void set_task_inversos_ss(struct task_struct *tsk, unsigned long addr)
+{
+	tsk->thread_info.inversos_ss = addr;
 }
 #endif

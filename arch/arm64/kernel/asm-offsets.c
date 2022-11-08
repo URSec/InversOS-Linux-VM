@@ -48,6 +48,9 @@ int main(void)
 #endif
 #ifdef CONFIG_ARM64_INVERSOS
   DEFINE(TSK_TI_INVERSOS,	offsetof(struct task_struct, thread_info.inversos));
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+  DEFINE(TSK_TI_INVERSOS_SS,	offsetof(struct task_struct, thread_info.inversos_ss));
+#endif
 #endif
   DEFINE(TSK_STACK,		offsetof(struct task_struct, stack));
   BLANK();

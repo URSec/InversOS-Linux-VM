@@ -195,6 +195,10 @@ static inline void set_compat_ssbs_bit(struct pt_regs *regs)
 unsigned long task_inversos(const struct task_struct *tsk);
 #endif
 
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+unsigned long task_inversos_ss(const struct task_struct *tsk);
+#endif
+
 static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 				unsigned long sp)
 {
@@ -207,6 +211,19 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 		else
 			regs->pstate = PSR_MODE_EL1t;
 		regs->pstate |= PSR_PAN_BIT;
+
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+		/*
+		 * Point x28 to the shadow stack top.
+		 *
+		 * If no shadow stack was allocated, point x28 to an address
+		 * that would cause a trap when being pushed onto.
+		 */
+		if (task_inversos_ss(current))
+			regs->regs[28] = task_inversos_ss(current);
+		else
+			regs->regs[28] = 16;
+#endif
 	} else
 #endif
 	regs->pstate = PSR_MODE_EL0t;

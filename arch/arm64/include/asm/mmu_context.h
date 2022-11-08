@@ -235,7 +235,16 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	update_saved_ttbr0(tsk, next);
 }
 
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+static inline void
+deactivate_mm(struct task_struct *tsk, struct mm_struct *mm)
+{
+	if (task_inversos(tsk))
+		inversos_teardown_shadow_stack(tsk);
+}
+#else
 #define deactivate_mm(tsk,mm)	do { } while (0)
+#endif
 #define activate_mm(prev,next)	switch_mm(prev, next, current)
 
 void verify_cpu_asid_bits(void);

@@ -1192,6 +1192,11 @@ config ARM64_INVERSOS_E0PD
 
 endchoice
 
+config ARM64_INVERSOS_PSS
+	bool "Enable user-space protected shadow stack enforcements for InversOS"
+	default y
+	depends on ARM64_INVERSOS
+
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
 	default y

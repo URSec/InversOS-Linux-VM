@@ -45,12 +45,19 @@ struct thread_info {
 	int			preempt_count;	/* 0 => preemptable, <0 => bug */
 #ifdef CONFIG_ARM64_INVERSOS
 	unsigned long		inversos;	/* Whether an inversos task */
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+	unsigned long		inversos_ss;	/* Top of inversos shadow stack */
+#endif
 #endif
 };
 
 #ifdef CONFIG_ARM64_INVERSOS
 unsigned long task_inversos(const struct task_struct *tsk);
 void set_task_inversos(struct task_struct *tsk, unsigned long val);
+#ifdef CONFIG_ARM64_INVERSOS_PSS
+unsigned long task_inversos_ss(const struct task_struct *tsk);
+void set_task_inversos_ss(struct task_struct *tsk, unsigned long addr);
+#endif
 #endif
 
 #define thread_saved_pc(tsk)	\
