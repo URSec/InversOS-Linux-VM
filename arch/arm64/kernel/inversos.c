@@ -134,6 +134,13 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UMA))
 				return illegal_insn(mm, addr, insn, type);
 			break;
+		/* SCXTNUM_EL0 accessible from EL0 if !EL2 && SCTLR_EL1.TSCXT == 0 */
+		case EXTRACTED(SYS_SCXTNUM_EL0):
+			if (is_kernel_in_hyp_mode())
+				return illegal_insn(mm, addr, insn, type);
+			else if (read_sysreg(sctlr_el1) & SCTLR_EL1_TSCXT)
+				return illegal_insn(mm, addr, insn, type);
+			break;
 		/* Debug registers accessible from EL0 if !EL2 && MDSCR_EL1.TDCC == 0 */
 		case EXTRACTED(SYS_DBGDTR_EL0):
 		case EXTRACTED(SYS_DBGDTRTX_EL0):
@@ -182,6 +189,8 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		case EXTRACTED(SYS_REVIDR_EL1):
 		case EXTRACTED(SYS_ID_AA64PFR0_EL1):
 		case EXTRACTED(SYS_ID_AA64PFR1_EL1):
+		case EXTRACTED(SYS_ID_AA64ZFR0_EL1):
+		case EXTRACTED(SYS_ID_AA64SMFR0_EL1):
 		case EXTRACTED(SYS_ID_AA64DFR0_EL1):
 		case EXTRACTED(SYS_ID_AA64DFR1_EL1):
 		case EXTRACTED(SYS_ID_AA64AFR0_EL1):
