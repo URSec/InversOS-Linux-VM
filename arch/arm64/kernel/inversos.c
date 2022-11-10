@@ -134,6 +134,11 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UMA))
 				return illegal_insn(mm, addr, insn, type);
 			break;
+		/* TPIDR2_EL0 accessible from EL0 if SCTLR_EL1.ENTP2 == 1 */
+		case EXTRACTED(SYS_TPIDR2_EL0):
+			if (!(read_sysreg(sctlr_el1) & SCTLR_ELx_ENTP2))
+				return illegal_insn(mm, addr, insn, type);
+			break;
 		/* SCXTNUM_EL0 accessible from EL0 if !EL2 && SCTLR_EL1.TSCXT == 0 */
 		case EXTRACTED(SYS_SCXTNUM_EL0):
 			if (is_kernel_in_hyp_mode())
@@ -215,6 +220,11 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 		/* CTR_EL0 accessible from EL0 if SCTLR_EL1.UCT == 1 */
 		case EXTRACTED(SYS_CTR_EL0):
 			if (!(read_sysreg(sctlr_el1) & SCTLR_EL1_UCT))
+				return illegal_insn(mm, addr, insn, type);
+			break;
+		/* TPIDR2_EL0 accessible from EL0 if SCTLR_EL1.ENTP2 == 1 */
+		case EXTRACTED(SYS_TPIDR2_EL0):
+			if (!(read_sysreg(sctlr_el1) & SCTLR_ELx_ENTP2))
 				return illegal_insn(mm, addr, insn, type);
 			break;
 		/* SCXTNUM_EL0 accessible from EL0 if !EL2 && SCTLR_EL1.TSCXT == 0 */
