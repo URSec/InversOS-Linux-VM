@@ -45,13 +45,15 @@ enum {
 	ILLEGAL_DVP	= 7,
 	ILLEGAL_DC_IC	= 8,
 	ILLEGAL_TLBI	= 9,
-	ILLEGAL_SYSL	= 10,
-	ILLEGAL_HVC	= 11,
-	ILLEGAL_SMC	= 12,
-	ILLEGAL_LDGM	= 13,
-	ILLEGAL_STGM	= 14,
-	ILLEGAL_STZGM	= 15,
-	ILLEGAL_ERET	= 16,
+	ILLEGAL_BRB	= 10,
+	ILLEGAL_SYS	= 16,
+	ILLEGAL_SYSL	= 32,
+	ILLEGAL_HVC	= 33,
+	ILLEGAL_SMC	= 34,
+	ILLEGAL_LDGM	= 35,
+	ILLEGAL_STGM	= 36,
+	ILLEGAL_STZGM	= 37,
+	ILLEGAL_ERET	= 38,
 	/* TODO: Add instructions of interest. */
 };
 
@@ -340,6 +342,16 @@ static int do_scan_insn(struct mm_struct *mm, unsigned long addr, u32 insn)
 	/* TLBI */
 	else if (aarch64_insn_is_tlbi(insn)) {
 		type = ILLEGAL_TLBI;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* BRB */
+	else if (aarch64_insn_is_brb(insn)) {
+		type = ILLEGAL_BRB;
+		return illegal_insn(mm, addr, insn, type);
+	}
+	/* SYS */
+	else if (aarch64_insn_is_sys(insn)) {
+		type = ILLEGAL_SYS;
 		return illegal_insn(mm, addr, insn, type);
 	}
 	/* SYSL */

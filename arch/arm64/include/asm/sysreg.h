@@ -306,6 +306,9 @@
 #define SYS_DVP_RCTX			sys_insn(1, 3, 7, 3, 5)
 #define SYS_CPP_RCTX			sys_insn(1, 3, 7, 3, 7)
 
+#define SYS_BRB_IALL			sys_insn(1, 1, 7, 2, 4)
+#define SYS_BRB_INJ			sys_insn(1, 1, 7, 2, 5)
+
 #define SYS_OSDTRRX_EL1			sys_reg(2, 0, 0, 0, 2)
 #define SYS_MDCCINT_EL1			sys_reg(2, 0, 0, 2, 0)
 #define SYS_MDSCR_EL1			sys_reg(2, 0, 0, 2, 2)
