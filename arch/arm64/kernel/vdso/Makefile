@@ -23,6 +23,14 @@ ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1 --hash-style=sysv \
 ccflags-y := -fno-common -fno-builtin -fno-stack-protector -ffixed-x18
 ccflags-y += -DDISABLE_BRANCH_PROFILING
 
+ifeq ($(CONFIG_ARM64_INVERSOS), y)
+  ccflags-y += -mllvm --aarch64-inversos
+  ccflags-y += -mllvm --aarch64-inversos-shadow-stack=0
+  ccflags-y += -DINVERSOS -DINVERSOS_CFI
+  ldflags-y := -z inversos $(ldflags-y)
+  ldflags-y := -z inversos-cfi $(ldflags-y)
+endif
+
 VDSO_LDFLAGS := -Bsymbolic
 
 CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os
