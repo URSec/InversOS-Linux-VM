@@ -1282,9 +1282,19 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
 	if (!mm_init(mm, tsk, mm->user_ns))
 		goto fail_nomem;
 
+#ifdef CONFIG_ARM64_INVERSOS
+	if (mm->context.inversos)
+		mm->context.inversos = INVERSOS_PROTECTED_IN_FORK;
+#endif
+
 	err = dup_mmap(mm, oldmm);
 	if (err)
 		goto free_pt;
+
+#ifdef CONFIG_ARM64_INVERSOS
+	if (mm->context.inversos)
+		mm->context.inversos = INVERSOS_PROTECTED;
+#endif
 
 	mm->hiwater_rss = get_mm_rss(mm);
 	mm->hiwater_vm = mm->total_vm;

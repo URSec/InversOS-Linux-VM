@@ -297,7 +297,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 	}
 
 #ifdef CONFIG_ARM64_INVERSOS
-	if (mm->context.inversos && addr < TASK_SIZE) {
+	if (mm->context.inversos == INVERSOS_PROTECTED && addr < TASK_SIZE) {
 		/*
 		 * Map normal memory for inversos tasks as EL0-inaccessible
 		 * and protected memory as EL0-accessible.

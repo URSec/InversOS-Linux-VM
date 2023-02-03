@@ -1055,6 +1055,15 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 */
 	if (vm_flags & VM_SHARED)
 		pte = pte_mkclean(pte);
+
+#ifdef CONFIG_ARM64_INVERSOS
+	/*
+	 * Preserve the access flag when copying PTEs of vetted code pages of
+	 * an inversos task during fork.
+	 */
+	if (src_mm->context.inversos != INVERSOS_PROTECTED_IN_FORK ||
+	    !!(pte_val(pte) & PTE_PXN))
+#endif
 	pte = pte_mkold(pte);
 
 	page = vm_normal_page(vma, addr, pte);
@@ -1254,6 +1263,13 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * efficient than faulting.
 	 */
 	if (!(vma->vm_flags & (VM_HUGETLB | VM_PFNMAP | VM_MIXEDMAP)) &&
+#ifdef CONFIG_ARM64_INVERSOS
+	    /*
+	     * Copy PTEs of code pages of an inversos task so that vetted
+	     * code pages do not go through code scanning again.
+	     */
+	    (!src_mm->context.inversos || !(vma->vm_flags & VM_EXEC)) &&
+#endif
 			!vma->anon_vma)
 		return 0;
 

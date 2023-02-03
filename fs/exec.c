@@ -1757,7 +1757,7 @@ static int bprm_init_inversos(struct linux_binprm *bprm,
 				return -EFAULT;
 
 			if (!strncmp(buf, "INVERSOS=1", MAX_ARG_STRLEN)) {
-				bprm->inversos = 1;
+				bprm->inversos = INVERSOS_PROTECTED;
 				return 0;
 			}
 
