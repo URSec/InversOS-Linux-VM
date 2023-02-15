@@ -1178,6 +1178,40 @@ config ARM64_INVERSOS
 	default n
 	depends on ARM64_PAN
 	depends on !COMPAT # Only an implementation choice
+	help
+	  This feature enables InversOS, which reverses memory access
+	  permissions of the kernel and user-space to create a separate
+	  protection domain for the user-space.
+
+	  When enabled, kernel memory is marked as EL0-accessible, and
+	  user-space processes needing a separate protection domain (hereafter
+	  referred to as inversos tasks) are run at EL1t/EL2t with their memory
+	  marked as EL0-inaccessible. InversOS then uses PAN to ensure that
+	  these user-space processes cannot access kernel memory.
+
+	  In this way, the kernel creates a separate protection domain for
+	  these inversos tasks by marking pages needing protection as
+	  EL0-accessible; only unprivileged load/store instructions can access
+	  these pages, and different security policies can be enforced that
+	  only allow certain occurrences of unprivileged load/store
+	  instructions in their code. A protected shadow stack is enforced by
+	  default as an example.
+
+	  To prevent potential danger of running inversos tasks at EL1t/EL2t,
+	  a combination of a compile-time compiler pass and a load-time code
+	  scanner is used to vet every code page of inversos tasks.
+	  The compiler pass scans code at compile time to ensure that its
+	  control-flow transfer instructions will not jump to kernel code and
+	  it contains no unprivileged load/store instructions that could break
+	  the enforced security policies. The code scanner at load time makes
+	  sure that each code page of inversos tasks contains no detrimental
+	  privileged instructions before it is marked executable.
+
+	  Not all user-space programs need a separate protection domain. To
+	  keep compatibility with legacy programs, InversOS runs legacy
+	  user-space processes at EL0, marks their memory as EL0-accessible,
+	  and relies on either E0PD or HPDS to prevent them from accessing
+	  kernel memory.
 
 choice
 	prompt "How to prevent legacy processes from accessing kernel memory"
@@ -1196,6 +1230,9 @@ config ARM64_INVERSOS_PSS
 	bool "Enable user-space protected shadow stack enforcements for InversOS"
 	default y
 	depends on ARM64_INVERSOS
+	help
+	  This feature enables protected shadow stack enforcements in InversOS
+	  for user-space processes needing a separate protection domain.
 
 config ARM64_SVE
 	bool "ARM Scalable Vector Extension support"
